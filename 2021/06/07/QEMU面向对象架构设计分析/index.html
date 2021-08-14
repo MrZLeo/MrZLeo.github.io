@@ -8,7 +8,7 @@
         <link rel="shortcut icon" href="/img/logo.jpeg"/>
         <link rel="canonical" href="http://guolinn.com/">
         <link rel="alternate" type="application/rss+xml" title="Zhang Jing" href="/atom.xml">
-        <title>Technical Blog</title>
+        <title>QEMU面向对象架构设计分析 | Technical Blog</title>
         <meta name="description" content="{{meta_description}}">
 
         <link href="//cdn.bootcss.com/font-awesome/4.6.3/css/font-awesome.min.css" rel="stylesheet">
@@ -45,7 +45,7 @@
   June 7, 2021
   
 
-  <h1 class="post-title"></h1>
+  <h1 class="post-title">QEMU面向对象架构设计分析</h1>
   <section class="post-content article-entry">
     <p>在QEMU的QOM框架下定义一个新设备，需要遵循相应的接口，其中最重要的就是设计派生的<code>ObjectClass</code>和<code>Object</code>。这里，我们以一个具体的设备（qemu/hw/misc/edu.c）为例，分析从设计设备到将其载入QEMU系统的过程。</p>
 <h3 id="一、新设备的定义——派生的ObjectClass和Object"><a href="#一、新设备的定义——派生的ObjectClass和Object" class="headerlink" title="一、新设备的定义——派生的ObjectClass和Object"></a>一、新设备的定义——派生的<code>ObjectClass</code>和<code>Object</code></h3><p><code>ObjectClass</code>是一类设备的抽象概念，而<code>Object</code>则是具体设备的概念。这两个概念相互协同，我们将极度抽象的、笼统的、概述的内容写入<code>ObjectClass</code>，而将具体的、专有的、特别的内容写入<code>Object</code>。以从语言机制上支持面向对象的C++为例，<code>ObjectClass</code>就像是一个class的成员函数和static变量的集合，而<code>Object</code>则是class的成员变量的集合。</p>
@@ -136,7 +136,7 @@
     <span class="page-number">•</span>
     
     <a class="older-posts" href="/2021/06/06/QEMU%E6%A6%82%E5%BF%B5%E5%92%8C%E5%AE%9E%E4%BD%93%E7%9A%84%E5%85%B7%E4%BD%93%E5%88%86%E6%9E%90/">
-        <!----> next →
+        <!--QEMU概念和实体的具体分析--> next →
     </a>
     
 </nav>

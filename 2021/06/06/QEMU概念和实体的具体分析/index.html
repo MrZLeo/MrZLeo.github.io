@@ -8,7 +8,7 @@
         <link rel="shortcut icon" href="/img/logo.jpeg"/>
         <link rel="canonical" href="http://guolinn.com/">
         <link rel="alternate" type="application/rss+xml" title="Zhang Jing" href="/atom.xml">
-        <title>Technical Blog</title>
+        <title>QEMU概念和实体的具体分析 | Technical Blog</title>
         <meta name="description" content="{{meta_description}}">
 
         <link href="//cdn.bootcss.com/font-awesome/4.6.3/css/font-awesome.min.css" rel="stylesheet">
@@ -45,7 +45,7 @@
   June 6, 2021
   
 
-  <h1 class="post-title"></h1>
+  <h1 class="post-title">QEMU概念和实体的具体分析</h1>
   <section class="post-content article-entry">
     <p>首先在main执行之前的程序准备阶段，先根据我们提供的<code>register_type</code>函数得到一个<code>ModuleEntry</code>的实体，这个实体是每个设备都对应有一个的，这个实体可以调用我们为设备定义的<code>pci_edu_register_types</code>函数，用于初始化。</p>
 <figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">void</span> <span class="title">register_module_init</span><span class="params">(<span class="keyword">void</span> (*fn)(<span class="keyword">void</span>), module_init_type type)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    ModuleEntry *e;</span><br><span class="line">    ModuleTypeList *l;</span><br><span class="line"></span><br><span class="line">    e = g_malloc0(<span class="keyword">sizeof</span>(*e)); <span class="comment">/* --------------------&gt; instantiation: ModuleEntry */</span></span><br><span class="line">    e-&gt;init = fn;			   <span class="comment">/* init function: e.g. `pci_edu_register_types` */</span></span><br><span class="line">    e-&gt;type = type;</span><br><span class="line"></span><br><span class="line">    l = find_type(type);</span><br><span class="line"></span><br><span class="line">    QTAILQ_INSERT_TAIL(l, e, node);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
@@ -83,7 +83,7 @@
 <nav class="pagination" role="pagination">
     
     <a class="newer-posts" href="/2021/06/07/QEMU%E9%9D%A2%E5%90%91%E5%AF%B9%E8%B1%A1%E6%9E%B6%E6%9E%84%E8%AE%BE%E8%AE%A1%E5%88%86%E6%9E%90/">
-        ← prev <!---->
+        ← prev <!--QEMU面向对象架构设计分析-->
     </a>
     
     <span class="page-number">•</span>
