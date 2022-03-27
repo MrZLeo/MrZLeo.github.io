@@ -26,7 +26,7 @@
 <meta property="og:description" content="当我们需要找一个文件，却不知道文件的位置，我们应该怎么做呢？ 答案很简单，使用 find 命令就可以了。但是我使用了更modern的命令 fd，这个命令可以在unix&#x2F;Linux下使用各种包管理工具下载。 我有一个真实的文件 int_test.psm，我不知道他藏在哪里，于是我决定搜索一番。 12$ fd int_test.psmDownloads&#x2F;KCPSM3&#x2F;Assembler&#x2F;in">
 <meta property="og:locale" content="zh_CN">
 <meta property="article:published_time" content="2022-03-26T16:18:42.000Z">
-<meta property="article:modified_time" content="2022-03-27T02:32:07.324Z">
+<meta property="article:modified_time" content="2022-03-27T06:06:17.915Z">
 <meta property="article:author" content="Zhang Jing">
 <meta property="article:tag" content="Linux命令行技巧">
 <meta name="twitter:card" content="summary_large_image">
@@ -247,35 +247,35 @@
 
 <p>现在我知道了他的位置了，我想直接跳转到他的文件夹下操作，这怎么办呢？</p>
 <p>首先我们要将这个输出传递出来交给 <code>cd</code>。但是直接的管道操作是行不通的。</p>
-<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs bash">$ fd int_test.psm | <span class="hljs-built_in">cd</span><br></code></pre></td></tr></table></figure>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs shell"><span class="hljs-meta prompt_">$ </span><span class="language-bash">fd int_test.psm | <span class="hljs-built_in">cd</span></span><br></code></pre></td></tr></table></figure>
 
 <p>想要将一个命令的结果当成另一个命令的参数，突然想起有一个命令确实做的是这件事！那就是—— <code>xargs</code>。</p>
-<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs bash">$ <span class="hljs-built_in">echo</span> <span class="hljs-string">&quot;hi&quot;</span> | xargs <span class="hljs-built_in">echo</span><br>hi<br></code></pre></td></tr></table></figure>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs shell"><span class="hljs-meta prompt_">$ </span><span class="language-bash"><span class="hljs-built_in">echo</span> <span class="hljs-string">&quot;hi&quot;</span> | xargs <span class="hljs-built_in">echo</span></span><br>hi<br></code></pre></td></tr></table></figure>
 
 <p>这个命令的原理就是获取管道一侧的输入，将其作为管道另一端的命令的参数。</p>
 <p>那么我们来试试吧：</p>
-<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs bash">$ fd int_test.psm | xargs <span class="hljs-built_in">cd</span><br>/usr/bin/cd: line 4: <span class="hljs-built_in">cd</span>: ./Downloads/KCPSM3/Assembler/int_test.psm: Not a directory<br></code></pre></td></tr></table></figure>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs shell"><span class="hljs-meta prompt_">$ </span><span class="language-bash">fd int_test.psm | xargs <span class="hljs-built_in">cd</span></span><br>/usr/bin/cd: line 4: cd: ./Downloads/KCPSM3/Assembler/int_test.psm: Not a directory<br></code></pre></td></tr></table></figure>
 
 <p>获得了一个错误❌……</p>
 <p>错误信息告诉我们，我们给cd的参数不是一个文件夹。确实如此，<code>fd</code> 得到的是文件的绝对地址，而不是文件所在的文件夹。这又怎么办呢？我们需要一个命令能够给我们分离出文件的文件夹。</p>
 <p>本着觉得这种东西应该存在，它就应该真的存在的原则，我来到了<a target="_blank" rel="noopener" href="https://www.gnu.org/software/coreutils/manual/coreutils.html#toc-Directory-listing-1">gnu的coreutils列表</a>。这里存放着gnu为Linux设计的各种核心工具，里面包括我们熟知的 <code>cd</code>, <code>cp</code>, <code>mv</code> 等等重要的命令行工具。搜索 <code>directory</code>，我发现了宝贝—— <code>dirname</code>。这个命令的简介说他可以输出把一个地址的最后一个 &#x2F; 及其后面的内容去掉的结果：</p>
-<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs bash">$ <span class="hljs-built_in">dirname</span> /dev/zero<br>/dev<br></code></pre></td></tr></table></figure>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs shell"><span class="hljs-meta prompt_">$ </span><span class="language-bash"><span class="hljs-built_in">dirname</span> /dev/zero</span><br>/dev<br></code></pre></td></tr></table></figure>
 
 <p>这不是正合我意吗？赶紧试试：</p>
-<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs bash">$ fd int_test.psm | xargs <span class="hljs-built_in">dirname</span><br>./Downloads/KCPSM3/Assembler<br></code></pre></td></tr></table></figure>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs shell"><span class="hljs-meta prompt_">$ </span><span class="language-bash">fd int_test.psm | xargs <span class="hljs-built_in">dirname</span></span><br>./Downloads/KCPSM3/Assembler<br></code></pre></td></tr></table></figure>
 
 <p>很好，这就是我要的，然后我们再尝试一次 <code>xargs</code>：</p>
-<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs bash">$ fd int_test.psm | xargs <span class="hljs-built_in">dirname</span> | xargs <span class="hljs-built_in">cd</span><br></code></pre></td></tr></table></figure>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs shell"><span class="hljs-meta prompt_">$ </span><span class="language-bash">fd int_test.psm | xargs <span class="hljs-built_in">dirname</span> | xargs <span class="hljs-built_in">cd</span></span><br></code></pre></td></tr></table></figure>
 
 <p>事情并不像我们想的那样，我们的位置仍然没有发生变化。</p>
 <p>这又是为什么呢😭</p>
 <p>原来我们对 <code>xargs</code> 的理解不对。 <code>xargs</code>  会 <code>fork</code> 出一个新进程来执行操作，而执行操作只会在子进程中执行，最后输出会定想到标准输出，从而显示在屏幕。其实，大多数情况下，shell中执行命令的方式都是这样的，shell <code>fork</code> 出子进程，再利用 <code>exec</code> 家族的函数来执行真实的指令。但是 <code>cd</code> 的实现却不同， <code>cd </code> 必须在原本这一层完成执行，因为任何 <code>fork</code> 出来的进程切换文件夹都对我们没有意义。因此，<code>cd</code> 不能通过这种形式被执行。</p>
 <p>那么回到主题，我们到底怎么才能实现这个跳转呢？</p>
 <p>答案就是，先执行命令获得文件夹地址，然后将其作为cd的输入，我们需要这样写：</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs shell"><span class="hljs-meta prompt_">$ </span><span class="language-bash"><span class="hljs-built_in">cd</span> $(fd int_test.psm | xargs <span class="hljs-built_in">dirname</span>)</span><br></code></pre></td></tr></table></figure>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs \shell">$ cd $(fd int_test.psm | xargs dirname)<br></code></pre></td></tr></table></figure>
 
 <p>或者</p>
-<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs bash">$ <span class="hljs-built_in">cd</span> $(<span class="hljs-built_in">dirname</span> $(fd int_test.psm))<br></code></pre></td></tr></table></figure>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs shell"><span class="hljs-meta prompt_">$ </span><span class="language-bash"><span class="hljs-built_in">cd</span> $(<span class="hljs-built_in">dirname</span> $(fd int_test.psm))</span><br></code></pre></td></tr></table></figure>
 
 <p>请注意，我目前在 <code>zsh</code> 环境下，<code>bash</code> 或其他可能会存在语法不同。</p>
 <p>其中，<code>$(...)</code> 的语法是指将其结果取出并放置在这个位置。那么他就可以成为 <code>cd</code> 的参数了。</p>
