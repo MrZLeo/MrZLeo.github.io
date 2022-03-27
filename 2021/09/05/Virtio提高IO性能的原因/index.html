@@ -18,21 +18,22 @@
   <meta name="author" content="Zhang Jing">
   <meta name="keywords" content="">
   
-    <meta name="description" content="当我们需要找一个文件，却不知道文件的位置，我们应该怎么做呢？ 答案很简单，使用 find 命令就可以了。但是我使用了更modern的命令 fd，这个命令可以在unix&#x2F;Linux下使用各种包管理工具下载。 我有一个真实的文件 int_test.psm，我不知道他藏在哪里，于是我决定搜索一番。 12$ fd int_test.psmDownloads&#x2F;KCPSM3&#x2F;Assembler&#x2F;in">
+    <meta name="description" content="1. virtio标准传统的IO设备模拟方案中，直接对硬件设备进行完全模拟，其寄存器、内存等硬件资源都需要使用软件来仿真。而实际上，我们并不需要对硬件进行完完全全的仿真，相反，我们可以利用一些特殊的方案来实现硬件的功能，同时降低软件的复杂度、降低IO请求的次数。virtio的设计目的是为了减少百花齐放却参差不齐的各种硬件模拟，提供一个统一、抽象、高效的接口。这个接口定义了一个IO设备的通用功能。v">
 <meta property="og:type" content="article">
-<meta property="og:title" content="如何一行命令跳转到目标文件的文件夹下">
-<meta property="og:url" content="https://mrzleo.github.io/2022/03/27/%E5%A6%82%E4%BD%95%E4%B8%80%E8%A1%8C%E5%91%BD%E4%BB%A4%E8%B7%B3%E8%BD%AC%E5%88%B0%E7%9B%AE%E6%A0%87%E6%96%87%E4%BB%B6%E7%9A%84%E6%96%87%E4%BB%B6%E5%A4%B9%E4%B8%8B/index.html">
+<meta property="og:title" content="Virtio 提高IO性能的原因">
+<meta property="og:url" content="https://mrzleo.github.io/2021/09/05/Virtio%E6%8F%90%E9%AB%98IO%E6%80%A7%E8%83%BD%E7%9A%84%E5%8E%9F%E5%9B%A0/index.html">
 <meta property="og:site_name" content="Technical Blog">
-<meta property="og:description" content="当我们需要找一个文件，却不知道文件的位置，我们应该怎么做呢？ 答案很简单，使用 find 命令就可以了。但是我使用了更modern的命令 fd，这个命令可以在unix&#x2F;Linux下使用各种包管理工具下载。 我有一个真实的文件 int_test.psm，我不知道他藏在哪里，于是我决定搜索一番。 12$ fd int_test.psmDownloads&#x2F;KCPSM3&#x2F;Assembler&#x2F;in">
+<meta property="og:description" content="1. virtio标准传统的IO设备模拟方案中，直接对硬件设备进行完全模拟，其寄存器、内存等硬件资源都需要使用软件来仿真。而实际上，我们并不需要对硬件进行完完全全的仿真，相反，我们可以利用一些特殊的方案来实现硬件的功能，同时降低软件的复杂度、降低IO请求的次数。virtio的设计目的是为了减少百花齐放却参差不齐的各种硬件模拟，提供一个统一、抽象、高效的接口。这个接口定义了一个IO设备的通用功能。v">
 <meta property="og:locale" content="zh_CN">
-<meta property="article:published_time" content="2022-03-26T16:18:42.000Z">
-<meta property="article:modified_time" content="2022-03-27T06:08:01.055Z">
+<meta property="article:published_time" content="2021-09-04T16:00:00.000Z">
+<meta property="article:modified_time" content="2022-03-27T06:43:44.702Z">
 <meta property="article:author" content="Zhang Jing">
-<meta property="article:tag" content="Linux命令行技巧">
+<meta property="article:tag" content="qemu">
+<meta property="article:tag" content="virtio">
 <meta name="twitter:card" content="summary_large_image">
   
   
-  <title>如何一行命令跳转到目标文件的文件夹下 - Technical Blog</title>
+  <title>Virtio 提高IO性能的原因 - Technical Blog</title>
 
   <link  rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4/dist/css/bootstrap.min.css" />
 
@@ -178,7 +179,7 @@
       <div class="full-bg-img">
         <div class="mask flex-center" style="background-color: rgba(0, 0, 0, 0.3)">
           <div class="page-header text-center fade-in-up">
-            <span class="h2" id="subtitle" title="如何一行命令跳转到目标文件的文件夹下">
+            <span class="h2" id="subtitle" title="Virtio 提高IO性能的原因">
               
             </span>
 
@@ -188,8 +189,8 @@
   
     <span class="post-meta">
       <i class="iconfont icon-date-fill" aria-hidden="true"></i>
-      <time datetime="2022-03-27 00:18" pubdate>
-        2022年3月27日 凌晨
+      <time datetime="2021-09-05 00:00" pubdate>
+        2021年9月5日 凌晨
       </time>
     </span>
   
@@ -237,48 +238,20 @@
         <div class="py-5" id="board">
           <article class="post-content mx-auto">
             <!-- SEO header -->
-            <h1 style="display: none">如何一行命令跳转到目标文件的文件夹下</h1>
+            <h1 style="display: none">Virtio 提高IO性能的原因</h1>
             
             <div class="markdown-body">
-              <p>当我们需要找一个文件，却不知道文件的位置，我们应该怎么做呢？</p>
-<p>答案很简单，使用 <code>find</code> 命令就可以了。但是我使用了更modern的命令 <code>fd</code>，这个命令可以在unix&#x2F;Linux下使用各种包管理工具下载。</p>
-<p>我有一个真实的文件 <code>int_test.psm</code>，我不知道他藏在哪里，于是我决定搜索一番。</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><div class="code-wrapper"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></div></td><td class="code"><pre><code class="hljs shell"><span class="hljs-meta prompt_">$ </span><span class="language-bash">fd int_test.psm</span><br>Downloads/KCPSM3/Assembler/int_test.psm<br></code></pre></td></tr></table></figure>
-
-<p>现在我知道了他的位置了，我想直接跳转到他的文件夹下操作，这怎么办呢？</p>
-<p>首先我们要将这个输出传递出来交给 <code>cd</code>。但是直接的管道操作是行不通的。</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs shell"><span class="hljs-meta prompt_">$ </span><span class="language-bash">fd int_test.psm | <span class="hljs-built_in">cd</span></span><br></code></pre></td></tr></table></figure>
-
-<p>想要将一个命令的结果当成另一个命令的参数，突然想起有一个命令确实做的是这件事！那就是—— <code>xargs</code>。</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs shell"><span class="hljs-meta prompt_">$ </span><span class="language-bash"><span class="hljs-built_in">echo</span> <span class="hljs-string">&quot;hi&quot;</span> | xargs <span class="hljs-built_in">echo</span></span><br>hi<br></code></pre></td></tr></table></figure>
-
-<p>这个命令的原理就是获取管道一侧的输入，将其作为管道另一端的命令的参数。</p>
-<p>那么我们来试试吧：</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs shell"><span class="hljs-meta prompt_">$ </span><span class="language-bash">fd int_test.psm | xargs <span class="hljs-built_in">cd</span></span><br>/usr/bin/cd: line 4: cd: ./Downloads/KCPSM3/Assembler/int_test.psm: Not a directory<br></code></pre></td></tr></table></figure>
-
-<p>获得了一个错误❌……</p>
-<p>错误信息告诉我们，我们给cd的参数不是一个文件夹。确实如此，<code>fd</code> 得到的是文件的绝对地址，而不是文件所在的文件夹。这又怎么办呢？我们需要一个命令能够给我们分离出文件的文件夹。</p>
-<p>本着觉得这种东西应该存在，它就应该真的存在的原则，我来到了<a target="_blank" rel="noopener" href="https://www.gnu.org/software/coreutils/manual/coreutils.html#toc-Directory-listing-1">gnu的coreutils列表</a>。这里存放着gnu为Linux设计的各种核心工具，里面包括我们熟知的 <code>cd</code>, <code>cp</code>, <code>mv</code> 等等重要的命令行工具。搜索 <code>directory</code>，我发现了宝贝—— <code>dirname</code>。这个命令的简介说他可以输出把一个地址的最后一个 &#x2F; 及其后面的内容去掉的结果：</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs shell"><span class="hljs-meta prompt_">$ </span><span class="language-bash"><span class="hljs-built_in">dirname</span> /dev/zero</span><br>/dev<br></code></pre></td></tr></table></figure>
-
-<p>这不是正合我意吗？赶紧试试：</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs shell"><span class="hljs-meta prompt_">$ </span><span class="language-bash">fd int_test.psm | xargs <span class="hljs-built_in">dirname</span></span><br>./Downloads/KCPSM3/Assembler<br></code></pre></td></tr></table></figure>
-
-<p>很好，这就是我要的，然后我们再尝试一次 <code>xargs</code>：</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs shell"><span class="hljs-meta prompt_">$ </span><span class="language-bash">fd int_test.psm | xargs <span class="hljs-built_in">dirname</span> | xargs <span class="hljs-built_in">cd</span></span><br></code></pre></td></tr></table></figure>
-
-<p>事情并不像我们想的那样，我们的位置仍然没有发生变化。</p>
-<p>这又是为什么呢😭</p>
-<p>原来我们对 <code>xargs</code> 的理解不对。 <code>xargs</code>  会 <code>fork</code> 出一个新进程来执行操作，而执行操作只会在子进程中执行，最后输出会定想到标准输出，从而显示在屏幕。其实，大多数情况下，shell中执行命令的方式都是这样的，shell <code>fork</code> 出子进程，再利用 <code>exec</code> 家族的函数来执行真实的指令。但是 <code>cd</code> 的实现却不同， <code>cd </code> 必须在原本这一层完成执行，因为任何 <code>fork</code> 出来的进程切换文件夹都对我们没有意义。因此，<code>cd</code> 不能通过这种形式被执行。</p>
-<p>那么回到主题，我们到底怎么才能实现这个跳转呢？</p>
-<p>答案就是，先执行命令获得文件夹地址，然后将其作为cd的输入，我们需要这样写：</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs shell"><span class="hljs-meta prompt_">$ </span><span class="language-bash"><span class="hljs-built_in">cd</span> $(fd int_test.psm | xargs <span class="hljs-built_in">dirname</span>)</span><br></code></pre></td></tr></table></figure>
-
-<p>或者</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs shell"><span class="hljs-meta prompt_">$ </span><span class="language-bash"><span class="hljs-built_in">cd</span> $(<span class="hljs-built_in">dirname</span> $(fd int_test.psm))</span><br></code></pre></td></tr></table></figure>
-
-<p>请注意，我目前在 <code>zsh</code> 环境下，<code>bash</code> 或其他可能会存在语法不同。</p>
-<p>其中，<code>$(...)</code> 的语法是指将其结果取出并放置在这个位置。那么他就可以成为 <code>cd</code> 的参数了。</p>
+              <h2 id="1-virtio标准"><a href="#1-virtio标准" class="headerlink" title="1. virtio标准"></a>1. virtio标准</h2><p>传统的IO设备模拟方案中，直接对硬件设备进行完全模拟，其寄存器、内存等硬件资源都需要使用软件来仿真。而实际上，我们并不需要对硬件进行完完全全的仿真，相反，我们可以利用一些特殊的方案来实现硬件的功能，同时降低软件的复杂度、降低IO请求的次数。virtio的设计目的是为了减少百花齐放却参差不齐的各种硬件模拟，提供一个统一、抽象、高效的接口。这个接口定义了一个IO设备的通用功能。virtio设计的核心是提供一个virtqueue队列，实际上就是提供了一块内存空间，用以存储IO的交互信息（包括IO请求，以及IO完成的信号）。</p>
+<p>虚拟化场景下，Guset OS上装载virtio的前端驱动，驱动对他所控制的virtio设备进行控制，例如提交IO请求。IO请求的提交就是将其写入virtqueue中的desc数组，并且修改avail数组的信息，然后调用kick方法，通知后端有一个IO请求已被发送。Host中的后端（QEMU）接收到请求信号，在virtqueue中取出请求并进行处理，完成后将信息写入virtqueue的used数组，然后调用中断返回Guest。</p>
+<h2 id="2-virt标准所优化的性能问题"><a href="#2-virt标准所优化的性能问题" class="headerlink" title="2. virt标准所优化的性能问题"></a>2. virt标准所优化的性能问题</h2><p>virtio设计时为了提高效率，通过几个层面来降低了IO请求运转所需要的开销。</p>
+<h3 id="2-1-减少IO请求的通知次数"><a href="#2-1-减少IO请求的通知次数" class="headerlink" title="2.1 减少IO请求的通知次数"></a>2.1 减少IO请求的通知次数</h3><p>virtio设计的virtqueue能够提供IO请求批量处理的功能，也就是说，当我们有IO请求到来的时候，不一定需要立刻对单个请求进行处理，而是等待批量请求到达后，再统一提交。由于VM exit性能上来说非常昂贵，因此，这样的方案能够有效减少VM exit的次数，从而提高IO的性能。</p>
+<p>最新的virtio1.1标准中提供了batch和in-order两个特性，batch就是上述的批量处理，而in-order则是device按照driver产生请求的顺序处理请求，处理完之后只通知driver最后一个请求完成了，由于严格按照顺序处理，driver可以推断出前面的请求也完成了，这样一拉，发送通知的次数大大减小，进而降低了VM exit的次数，提高了性能。</p>
+<h3 id="2-2-消除数据拷贝"><a href="#2-2-消除数据拷贝" class="headerlink" title="2.2 消除数据拷贝"></a>2.2 消除数据拷贝</h3><p>virtio通过使用共享内存的方式共享virtqueue，从而不需要进行数据的拷贝，节省了IO请求提交和返回时对内存进行复制操作产生的开销。</p>
+<h3 id="2-3-解决Cache刷新问题"><a href="#2-3-解决Cache刷新问题" class="headerlink" title="2.3 解决Cache刷新问题"></a>2.3 解决Cache刷新问题</h3><p>最新的virtio1.1标准中，将原来virtqueue的三部分（desc、avail、used三个数组）合成为一个数组，老的内存布局称为Split Virtqueues，新的内存布局称为Packed Virtqueue。将其合成为一个数组的原因是原本的三个数组在多核状态下，不同cpu之间互相通知时，三个数组分布在不同的cacheline上导致多次cache刷新。Packed Virtqueue将avail和used并入desc数组，这样可以大大减少cache刷新的次数，从而提高性能。</p>
+<p>从硬件上说，这也是一个提高性能的办法，因为写三个不同的数组需要三次PCI传输，合并成一个数组之后则只需要IO请求和完成请求两次传输即可。</p>
+<hr>
+<h2 id="Reference"><a href="#Reference" class="headerlink" title="Reference"></a>Reference</h2><p>[1] <a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/54908778">https://zhuanlan.zhihu.com/p/54908778</a></p>
+<p>[2] <a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/361918197">https://zhuanlan.zhihu.com/p/361918197</a></p>
 
             </div>
             <hr>
@@ -289,7 +262,9 @@
                   <div class="post-meta">
                     <i class="iconfont icon-tags"></i>
                     
-                      <a class="hover-with-bg" href="/tags/Linux%E5%91%BD%E4%BB%A4%E8%A1%8C%E6%8A%80%E5%B7%A7/">Linux命令行技巧</a>
+                      <a class="hover-with-bg" href="/tags/qemu/">qemu</a>
+                    
+                      <a class="hover-with-bg" href="/tags/virtio/">virtio</a>
                     
                   </div>
                 
@@ -306,12 +281,18 @@
                   <article class="post-prev col-6">
                     
                     
+                      <a href="/2022/03/27/%E5%A6%82%E4%BD%95%E4%B8%80%E8%A1%8C%E5%91%BD%E4%BB%A4%E8%B7%B3%E8%BD%AC%E5%88%B0%E7%9B%AE%E6%A0%87%E6%96%87%E4%BB%B6%E7%9A%84%E6%96%87%E4%BB%B6%E5%A4%B9%E4%B8%8B/">
+                        <i class="iconfont icon-arrowleft"></i>
+                        <span class="hidden-mobile">如何一行命令跳转到目标文件的文件夹下</span>
+                        <span class="visible-mobile">上一篇</span>
+                      </a>
+                    
                   </article>
                   <article class="post-next col-6">
                     
                     
-                      <a href="/2021/09/05/Virtio%E6%8F%90%E9%AB%98IO%E6%80%A7%E8%83%BD%E7%9A%84%E5%8E%9F%E5%9B%A0/">
-                        <span class="hidden-mobile">Virtio 提高IO性能的原因</span>
+                      <a href="/2021/08/30/Insight-Of-Efficient-fault-injection-in-QEMU/">
+                        <span class="hidden-mobile">Insight Of 'Efficient fault injection in QEMU'</span>
                         <span class="visible-mobile">下一篇</span>
                         <i class="iconfont icon-arrowright"></i>
                       </a>

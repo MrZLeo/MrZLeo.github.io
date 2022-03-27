@@ -1,0 +1,901 @@
+
+
+<!DOCTYPE html>
+<html lang="zh-CN" data-default-color-scheme=auto>
+
+
+
+<head>
+  <meta charset="UTF-8">
+  <link rel="apple-touch-icon" sizes="76x76" href="/img/favicon.png">
+  <link rel="icon" href="/img/favicon.png">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, shrink-to-fit=no">
+  <meta http-equiv="x-ua-compatible" content="ie=edge">
+  
+    <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
+  
+  <meta name="theme-color" content="#2f4154">
+  <meta name="author" content="Zhang Jing">
+  <meta name="keywords" content="">
+  
+    <meta name="description" content="TASK:   qemu事件循环是如何使设备并行运行的 1.1 验证设备对应fd，通过查看proc 1.2 打开的fd是通过何种方式注册的 ​    1.2.1 搞清楚vCPU线程和事件循环线程之间的关系（key：vCPU如何与一个可以产生事件的模拟硬件设备进行交互）  搞清楚IO线程，各种线程之间的区别 2.1 列出所有的线程   Qemu Threads1. 事件循环和qemu的线程1.1 事">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Qemu Threads">
+<meta property="og:url" content="https://mrzleo.github.io/2021/07/10/QemuThreads/index.html">
+<meta property="og:site_name" content="Technical Blog">
+<meta property="og:description" content="TASK:   qemu事件循环是如何使设备并行运行的 1.1 验证设备对应fd，通过查看proc 1.2 打开的fd是通过何种方式注册的 ​    1.2.1 搞清楚vCPU线程和事件循环线程之间的关系（key：vCPU如何与一个可以产生事件的模拟硬件设备进行交互）  搞清楚IO线程，各种线程之间的区别 2.1 列出所有的线程   Qemu Threads1. 事件循环和qemu的线程1.1 事">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://i.loli.net/2021/07/14/YmtrhNwG1VakfxH.png">
+<meta property="og:image" content="https://i.loli.net/2021/07/13/HcFm1xP73lBwuvG.png">
+<meta property="og:image" content="https://i.loli.net/2021/07/14/1NhapzRijTZCc3S.png">
+<meta property="og:image" content="https://i.loli.net/2021/07/31/cJjeRSPFQtB2ZpW.png">
+<meta property="og:image" content="https://i.loli.net/2021/07/31/Wik6PgVQsmhUdH5.png">
+<meta property="og:image" content="https://i.loli.net/2021/07/31/8AavuFdOBczxrZ6.png">
+<meta property="og:image" content="https://i.loli.net/2021/07/30/rftN8sja1BUlK5n.jpg">
+<meta property="og:image" content="https://i.loli.net/2021/08/05/249Z1vm5zfnRP6l.png">
+<meta property="og:image" content="https://i.loli.net/2021/07/22/eTpcBF1LjCoKhNU.png">
+<meta property="og:image" content="https://i.loli.net/2021/07/22/3E9lvBWXTRhZKJy.png">
+<meta property="og:image" content="https://i.loli.net/2021/07/24/Nu89Obrt4Siz17X.png">
+<meta property="og:image" content="https://i.loli.net/2021/07/31/Pg5ym34nbZjd7Qw.png">
+<meta property="og:image" content="https://i.loli.net/2021/08/05/OIs1lrxw2VbYpSm.png">
+<meta property="og:image" content="https://i.loli.net/2021/07/24/9tZXw7FeA8MjBp4.png">
+<meta property="og:image" content="https://i.loli.net/2021/08/06/l9W3cbP2YNkTt1E.png">
+<meta property="og:image" content="https://i.loli.net/2021/07/15/U3aNIK9ceySDTGf.gif">
+<meta property="og:image" content="https://i.loli.net/2021/07/21/NhmBq8tKp4LWQx6.png">
+<meta property="og:image" content="https://i.loli.net/2021/08/17/1QXkhIHLnDKUtgl.png">
+<meta property="og:image" content="https://i.loli.net/2021/08/17/cXGHkTCgzfL1bli.png">
+<meta property="og:image" content="https://i.loli.net/2021/08/17/OWrV9DPbsmT6Kj3.png">
+<meta property="og:image" content="https://i.loli.net/2021/08/17/QlfxKTgwyhcivWU.png">
+<meta property="og:image" content="https://i.loli.net/2021/08/17/Bi5hOQwLFE6Y9bI.png">
+<meta property="og:image" content="https://i.loli.net/2021/08/17/TovsqMGVH8D2xBd.png">
+<meta property="article:published_time" content="2021-07-09T16:00:00.000Z">
+<meta property="article:modified_time" content="2022-03-27T06:41:27.210Z">
+<meta property="article:author" content="Zhang Jing">
+<meta property="article:tag" content="qemu">
+<meta property="article:tag" content="thread">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://i.loli.net/2021/07/14/YmtrhNwG1VakfxH.png">
+  
+  
+  <title>Qemu Threads - Technical Blog</title>
+
+  <link  rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4/dist/css/bootstrap.min.css" />
+
+
+  <link  rel="stylesheet" href="https://cdn.jsdelivr.net/npm/github-markdown-css@4/github-markdown.min.css" />
+  <link  rel="stylesheet" href="https://cdn.jsdelivr.net/npm/hint.css@2/e/hint.min.css" />
+
+  
+    
+    
+      
+      <link  rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@10/styles/github-gist.min.css" />
+    
+  
+
+  
+    <link  rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@3/dist/jquery.fancybox.min.css" />
+  
+
+
+<!-- 主题依赖的图标库，不要自行修改 -->
+
+<link rel="stylesheet" href="//at.alicdn.com/t/font_1749284_ba1fz6golrf.css">
+
+
+
+<link rel="stylesheet" href="//at.alicdn.com/t/font_1736178_lbnruvf0jn.css">
+
+
+<link  rel="stylesheet" href="/css/main.css" />
+
+<!-- 自定义样式保持在最底部 -->
+
+
+  <script id="fluid-configs">
+    var Fluid = window.Fluid || {};
+    var CONFIG = {"hostname":"mrzleo.github.io","root":"/","version":"1.8.14","typing":{"enable":true,"typeSpeed":70,"cursorChar":"_","loop":false},"anchorjs":{"enable":true,"element":"h1,h2,h3,h4,h5,h6","placement":"right","visible":"hover","icon":""},"progressbar":{"enable":true,"height_px":3,"color":"#29d","options":{"showSpinner":false,"trickleSpeed":100}},"copy_btn":true,"image_zoom":{"enable":true,"img_url_replace":["",""]},"toc":{"enable":true,"headingSelector":"h1,h2,h3,h4,h5,h6","collapseDepth":0},"lazyload":{"enable":true,"loading_img":"/img/loading.gif","onlypost":false,"offset_factor":2},"web_analytics":{"enable":false,"baidu":null,"google":null,"gtag":null,"tencent":{"sid":null,"cid":null},"woyaola":null,"cnzz":null,"leancloud":{"app_id":null,"app_key":null,"server_url":null,"path":"window.location.pathname","ignore_local":false}},"search_path":"/local-search.xml"};
+  </script>
+  <script  src="/js/utils.js" ></script>
+  <script  src="/js/color-schema.js" ></script>
+<meta name="generator" content="Hexo 6.1.0"></head>
+
+
+<body>
+  <header style="height: 70vh;">
+    <nav id="navbar" class="navbar fixed-top  navbar-expand-lg navbar-dark scrolling-navbar">
+  <div class="container">
+    <a class="navbar-brand" href="/">
+      <strong>MrzLeo</strong>
+    </a>
+
+    <button id="navbar-toggler-btn" class="navbar-toggler" type="button" data-toggle="collapse"
+            data-target="#navbarSupportedContent"
+            aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+      <div class="animated-icon"><span></span><span></span><span></span></div>
+    </button>
+
+    <!-- Collapsible content -->
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+      <ul class="navbar-nav ml-auto text-center">
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/">
+                <i class="iconfont icon-home-fill"></i>
+                首页
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/archives/">
+                <i class="iconfont icon-archive-fill"></i>
+                归档
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/categories/">
+                <i class="iconfont icon-category-fill"></i>
+                分类
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/tags/">
+                <i class="iconfont icon-tags-fill"></i>
+                标签
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/about/">
+                <i class="iconfont icon-user-fill"></i>
+                关于
+              </a>
+            </li>
+          
+        
+        
+          <li class="nav-item" id="search-btn">
+            <a class="nav-link" target="_self" href="javascript:;" data-toggle="modal" data-target="#modalSearch" aria-label="Search">
+              &nbsp;<i class="iconfont icon-search"></i>&nbsp;
+            </a>
+          </li>
+        
+        
+          <li class="nav-item" id="color-toggle-btn">
+            <a class="nav-link" target="_self" href="javascript:;" aria-label="Color Toggle">&nbsp;<i
+                class="iconfont icon-dark" id="color-toggle-icon"></i>&nbsp;</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</nav>
+
+    <div class="banner" id="banner" parallax=true
+         style="background: url('/img/default.png') no-repeat center center;
+           background-size: cover;">
+      <div class="full-bg-img">
+        <div class="mask flex-center" style="background-color: rgba(0, 0, 0, 0.3)">
+          <div class="page-header text-center fade-in-up">
+            <span class="h2" id="subtitle" title="Qemu Threads">
+              
+            </span>
+
+            
+              <div class="mt-3">
+  
+  
+    <span class="post-meta">
+      <i class="iconfont icon-date-fill" aria-hidden="true"></i>
+      <time datetime="2021-07-10 00:00" pubdate>
+        2021年7月10日 凌晨
+      </time>
+    </span>
+  
+</div>
+
+<div class="mt-1">
+  
+    <span class="post-meta mr-2">
+      <i class="iconfont icon-chart"></i>
+      40k 字
+    </span>
+  
+
+  
+    <span class="post-meta mr-2">
+      <i class="iconfont icon-clock-fill"></i>
+      
+      
+      330 分钟
+    </span>
+  
+
+  
+  
+</div>
+
+            
+          </div>
+
+          
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    
+      
+
+<div class="container-fluid nopadding-x">
+  <div class="row nomargin-x">
+    <div class="d-none d-lg-block col-lg-2"></div>
+    <div class="col-lg-8 nopadding-x-md">
+      <div class="container nopadding-x-md" id="board-ctn">
+        <div class="py-5" id="board">
+          <article class="post-content mx-auto">
+            <!-- SEO header -->
+            <h1 style="display: none">Qemu Threads</h1>
+            
+            <div class="markdown-body">
+              <p><strong>TASK: </strong></p>
+<ol>
+<li><p>qemu事件循环是如何使设备并行运行的</p>
+<p>1.1 验证设备对应fd，通过查看proc</p>
+<p>1.2 打开的fd是通过何种方式注册的</p>
+<p>​    1.2.1 搞清楚vCPU线程和事件循环线程之间的关系（key：vCPU如何与一个可以产生事件的模拟硬件设备进行交互）</p>
+</li>
+<li><p>搞清楚IO线程，各种线程之间的区别</p>
+<p>2.1 列出所有的线程</p>
+</li>
+</ol>
+<h1 id="Qemu-Threads"><a href="#Qemu-Threads" class="headerlink" title="Qemu Threads"></a>Qemu Threads</h1><h2 id="1-事件循环和qemu的线程"><a href="#1-事件循环和qemu的线程" class="headerlink" title="1. 事件循环和qemu的线程"></a>1. 事件循环和qemu的线程</h2><h3 id="1-1-事件循环（Event-loop）"><a href="#1-1-事件循环（Event-loop）" class="headerlink" title="1.1 事件循环（Event loop）"></a>1.1 事件循环（Event loop）</h3><p>事件循环是一种设计模式，它等待和分配事件或消息（waits and dispatches）。他的工作原理是：主循环初始化资源，然后阻塞请求直到有事件到达（<em>waits</em>）。事件到达后对事件进行监听（<em>poll</em>），当事件的预处理完成后（例如等待一段时间、获取一个packet、写入一个文件），<em>poll</em>返回，返回后调用该事件对应的callback function（<em>dispatch</em>）。</p>
+<figure class="highlight python"><table><tr><td class="gutter"><div class="code-wrapper"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></div></td><td class="code"><pre><code class="hljs python"><span class="hljs-comment"># 一个简单的示例</span><br><span class="hljs-keyword">def</span> <span class="hljs-title function_">main</span>():<br>    initialize()<br>    <span class="hljs-keyword">while</span> true:<br>        message = get_next_message()<br>        <span class="hljs-keyword">if</span> message == QUIT:<br>            <span class="hljs-keyword">break</span>;<br>        message_handler(message)<br>    clean_up()<br></code></pre></td></tr></table></figure>
+<p>下图是针对事件循环机制所设计的演示图。在事件循环的运行中，第一步是完成资源的初始化（<em>prepare</em>），填充一个事件文件描述符的列表，然后监听对应的文件描述符。等到文件描述符的状态变为 ready 时，将其放入事件队列（<em>poll</em>）。主循环中的代码执行完成后（即栈清空），将事件队列中的事件逐次地放入程序调用栈中调用其callback function（<em>dispatch</em>）。</p>
+<p><img src="https://i.loli.net/2021/07/14/YmtrhNwG1VakfxH.png" srcset="/img/loading.gif" lazyload alt="EventLoop" style="zoom: 50%;" /></p>
+<h3 id="1-2-QEMU的线程"><a href="#1-2-QEMU的线程" class="headerlink" title="1.2 QEMU的线程"></a>1.2 QEMU的线程</h3><p>QEMU有几种不同类型的线程：</p>
+<ol>
+<li>vCPU线程，模拟CPU中的一个核</li>
+<li>主循环（qemu/softmmu/main-loop.c）</li>
+<li>IO线程，在运行vCPU和外带QMP监控命令的同时运行模拟设备的事件循环</li>
+<li>Worker thread（VNC、SPICE……）</li>
+</ol>
+<blockquote>
+<p>VNC是worker thread的一个例子，他用了一个专门的worker thread（<code>ui/vnc-jobs.c</code>）来进行计算密集型的图像压缩和编码工作。</p>
+</blockquote>
+<p><img src="https://i.loli.net/2021/07/13/HcFm1xP73lBwuvG.png" srcset="/img/loading.gif" lazyload alt="qemu的各类线程" style="zoom: 77%;" /></p>
+<h3 id="1-3-主循环线程"><a href="#1-3-主循环线程" class="headerlink" title="1.3 主循环线程"></a>1.3 主循环线程</h3><p>当guest code（即虚拟机上的程序）访问设备寄存器的时候，vCPU线程捕获这个事件，将其分配给一个模拟设备，设备的<code>read/write</code>方法<strong>运行在vCPU线程上</strong>。 此时vCPU线程被阻塞，直到设备工作结束并返回。这样的方法意味着CPU将会被IO阻塞，尤其是那些需要较长时间运行的设备，例如磁盘。</p>
+<p>许多设备为了解决这个问题，采用了主循环线程的事件循环来代替vCPU循环。这些设备在主循环中加入计时器或是文件描述符（file descriptor）来监控回调函数，然后返回主程序执行循环下一条命令（guest code）。当计时器时间到了（timer expires）或文件描述符变为可用状态（file descriptor becomes ready）时，<strong>回调函数在主循环中运行。</strong></p>
+<p>主循环线程负责分配（<em>dispatch</em>）两种类型的任务，每种任务都有对应的多种事件源:</p>
+<ol>
+<li><strong>File descriptor event</strong><ul>
+<li><strong>aio</strong>: block I/O, ioeventfd</li>
+<li><strong>iohandler</strong>: old event handler inside the qemu  (net, nbd, audio, ui, vfio, …)</li>
+<li><strong>slirp</strong>: -net usr</li>
+<li><strong>chardev</strong>: -chardev xxx</li>
+</ul>
+</li>
+<li><strong>Non-fd services</strong><ul>
+<li><strong>timer</strong></li>
+<li><strong>bottom halves</strong> </li>
+</ul>
+</li>
+</ol>
+<h4 id="1-3-1-Three-part-of-Main-loop"><a href="#1-3-1-Three-part-of-Main-loop" class="headerlink" title="1.3.1 Three part of Main loop"></a>1.3.1 Three part of Main loop</h4><p>主循环分为三个部分，preparation，poll和dispatch。准备阶段处理文件描述符的注册，用一个数组将文件描述符保存起来。poll阶段接收各种事件，将他们放入队列中，在dispatch阶段将其分配给回调函数执行。</p>
+<p><img src="https://i.loli.net/2021/07/14/1NhapzRijTZCc3S.png" srcset="/img/loading.gif" lazyload alt="image-20210713111604404"  /></p>
+<ol>
+<li><p><strong>Preparation</strong>：last-minute preparation of various events and data structures</p>
+<ul>
+<li><p><strong>Fill in an array of fd</strong></p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs c">slirp_pollfds_fill(gpollfd, &amp;timeout)<br>qemu_iohandler_fill(gpollfd)<br>timeout = qemu_soonest_timeout(timeout, timer_deadline)<br>glib_pollfds_fill(gpollfd, &amp;timeout)<br></code></pre></td></tr></table></figure>
+</li>
+</ul>
+</li>
+<li><p><strong>Poll</strong>: watches for new event from kernel</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs c">qemu_poll_ns(gpollfd, tiemout)<br></code></pre></td></tr></table></figure>
+<ul>
+<li>Emulate timer inorder to make sure that we don’t wait forever</li>
+</ul>
+</li>
+<li><p><strong>dispatch</strong>: calls different callback function that registered by various subsystem</p>
+<blockquote>
+<p>💡Here subsystem stands for a <code>GSource</code> which will be discuss later.</p>
+</blockquote>
+<ul>
+<li><p><strong>fd, BH, aio timers</strong>:</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs c">glib_pollfds_poll()<br>qemu_iohandler_poll()<br>slirp_pollfds_poll()<br></code></pre></td></tr></table></figure>
+</li>
+<li><p><strong>main loop timers</strong></p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs c">qemu_clock_run_all_timers()<br></code></pre></td></tr></table></figure>
+</li>
+</ul>
+</li>
+</ol>
+<h4 id="1-3-2-事件源的API"><a href="#1-3-2-事件源的API" class="headerlink" title="1.3.2 事件源的API"></a>1.3.2 事件源的API</h4><p>iohandler</p>
+<ul>
+<li><p><strong>Prepare phase</strong>: append <em>fds</em> in <em>io_handlers</em> to <em>gpollfd</em></p>
+<ul>
+<li>Fds registered with <code>qemu_fd_handler()</code></li>
+</ul>
+</li>
+<li><p><strong>Dispatch pahse</strong>: </p>
+<ul>
+<li>Call <code>fd_read</code> callback if <code>(revents &amp; G_IO_IN)</code></li>
+<li>Call <code>fd_write</code> callback if <code>(revents &amp; G_IO_OUT)</code></li>
+</ul>
+</li>
+</ul>
+<p>slirp</p>
+<blockquote>
+<p>Slirp (sometimes capitalized SLiRP) is a software program that emulates a PPP, SLIP, or CSLIP connection to the Internet using a text-based shell account. </p>
+</blockquote>
+<ul>
+<li><strong>Prepare phase</strong>: <ul>
+<li>for each slirp instance（<code>-netdev user</code>），append its socket fds if:<ul>
+<li><strong>TCP</strong> accepting, connecting or connected</li>
+<li><strong>UDP</strong> connected</li>
+<li><strong>ICMP</strong> connected</li>
+</ul>
+</li>
+<li>calculates timeout for connection</li>
+</ul>
+</li>
+<li><strong>Dispatch pahse</strong>：<ul>
+<li>Check timeout</li>
+<li>Precess fd events (incomming packets)</li>
+<li>Send outbound packets</li>
+</ul>
+</li>
+</ul>
+<p>最后，我们从主循环的注册函数中可以查看到启动时会默认注册的几个默认事件源：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-type">int</span> <span class="hljs-title function_">qemu_init_main_loop</span><span class="hljs-params">(Error **errp)</span><br>&#123;<br>    <span class="hljs-type">int</span> ret;<br>    GSource *src;<br><br>    init_clocks(qemu_timer_notify_cb);<br><br>    ret = qemu_signal_init(errp);<br>    <span class="hljs-keyword">if</span> (ret) &#123;<br>        <span class="hljs-keyword">return</span> ret;<br>    &#125;<br><br>    qemu_aio_context = aio_context_new(errp);<br>    <span class="hljs-keyword">if</span> (!qemu_aio_context) &#123;<br>        <span class="hljs-keyword">return</span> -EMFILE;<br>    &#125;<br>    qemu_notify_bh = qemu_bh_new(notify_event_cb, <span class="hljs-literal">NULL</span>);<br>    gpollfds = g_array_new(FALSE, FALSE, <span class="hljs-keyword">sizeof</span>(GPollFD));<br>    src = aio_get_g_source(qemu_aio_context);<br>    g_source_set_name(src, <span class="hljs-string">&quot;aio-context&quot;</span>);<br>    g_source_attach(src, <span class="hljs-literal">NULL</span>);<br>    g_source_unref(src);<br>    src = iohandler_get_g_source();<br>    g_source_set_name(src, <span class="hljs-string">&quot;io-handler&quot;</span>);<br>    g_source_attach(src, <span class="hljs-literal">NULL</span>);<br>    g_source_unref(src);<br>    <span class="hljs-keyword">return</span> <span class="hljs-number">0</span>;<br>&#125;<br></code></pre></td></tr></table></figure>
+<p>可以看到在<code>qemu_init_main_loop</code>中注册了四个不同的内容，他们分别是<em>clock</em>、<em>signal</em>、<em>aio</em>、<em>iohandler</em>。这里的<em>aio</em>主要指的是负责处理块设备（block device）的事件源。</p>
+<h3 id="1-4-vCPU线程与IO事件处理"><a href="#1-4-vCPU线程与IO事件处理" class="headerlink" title="1.4 vCPU线程与IO事件处理"></a>1.4 vCPU线程与IO事件处理</h3><h4 id="1-4-1-kvm基本原理"><a href="#1-4-1-kvm基本原理" class="headerlink" title="1.4.1 kvm基本原理"></a>1.4.1 kvm基本原理</h4><p>系统虚拟机提供完整的设备模拟、运行系统和相互隔离，为了管理好这些虚拟机，我们需要在Host中提供一个统一的管理机制，即管理全局物理资源的资源管理器——VMM（Virtual Machine Monitor）。不管是qemu还是kvm，都是一种VMM，但是他们的实现方式完全不同。</p>
+<p>以qemu为基础的虚拟机是对所有硬件进行软件层面的完全模拟、并利用tcg将guest code转化成中间代码，再根据中间代码进行处理、执行。而这样的方法会导致效率很低。</p>
+<p><img src="https://i.loli.net/2021/07/31/cJjeRSPFQtB2ZpW.png" srcset="/img/loading.gif" lazyload alt="qemu__tcg" style="zoom:50%;" /></p>
+<p>而KVM的实现是基于硬件实现的。KVM利用Intel和AMD支持的x86平台下的硬件虚拟化机制实现，并成功地进入到Linux内核中，成为Linux的内核模块。硬件层面的虚拟化机制实际上是提供了全新的客户机操作模式（A new guest operating mode）、硬件层面的状态转换（Hardware state switch）及退出原因报告机制（Exit reason reporting）。这三个重要的硬件实现为kvm虚拟机的运行提供了基础。</p>
+<p>kvm启动虚拟机后，虚拟机成为host中的一个普通的进程。进程对guest code进行执行，此时硬件转到guest mode。这个模式下能够选择性地使某些操作（例如对特定寄存器的访问）陷入内核中。下图[12]是kvm执行时在三个模式中切换的示意图。</p>
+<p><img src="https://i.loli.net/2021/07/31/Wik6PgVQsmhUdH5.png" srcset="/img/loading.gif" lazyload alt="image-20210731105945091" style="zoom: 67%;" /></p>
+<p>kvm能够让guest code的执行充分利用host的CPU和内存，但对于更多的设备，尤其是IO设备，就需要借助qemu的既有实现。qemu在上图中就相当于是执行在user mode的软件，kvm则执行在kernel mode，负责对事件进行调度，qemu的vCPU线程实际上就是通过<code>ioctl</code>的系统调用进入到guest mode执行guest OS的。</p>
+<p>qemu-kvm设备模拟有三种方式，分别是<strong>纯软件的设备模拟</strong>、<strong>virtio设备模拟</strong>和<strong>直通设备(VFIO)</strong>。</p>
+<p><img src="https://i.loli.net/2021/07/31/8AavuFdOBczxrZ6.png" srcset="/img/loading.gif" lazyload alt="qemu_device_emulation" style="zoom: 50%;" /></p>
+<p>其中，virtio的处理流程如下图所示：</p>
+<p><img src="https://i.loli.net/2021/07/30/rftN8sja1BUlK5n.jpg" srcset="/img/loading.gif" lazyload alt="0260aedc7c4074467166edffab3f4766.png"></p>
+<p>首先值得注意的是，要使用virtio的IO方式，必须在guestOS上安装virtio的驱动。我们可以在Linux上利用命令</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs bash">lsmod | grep virtio<br></code></pre></td></tr></table></figure>
+<p>查看到是否安装了virtio的驱动。</p>
+<p><img src="https://i.loli.net/2021/08/05/249Z1vm5zfnRP6l.png" srcset="/img/loading.gif" lazyload alt="virtio_drive"></p>
+<p>virtio的用途主要是磁盘设备和网络设备这两类。根据以往的研究成果可以发现，在虚拟机的效率方面，磁盘和网络的读写影响巨大，而之前单纯的设备模拟机制只能提供相对来说不够强大的性能，为了提高这部分设备的性能，virtio应运而生。但为了实现virtio，我们必须在guest上安装对应的驱动，这产生了额外的开销，因此我们称这种虚拟化方式为半虚拟化（para-virtualization）。</p>
+<h4 id="1-4-2-virtio事件的处理流程"><a href="#1-4-2-virtio事件的处理流程" class="headerlink" title="1.4.2 virtio事件的处理流程"></a>1.4.2 virtio事件的处理流程</h4><p>vCPU线程最主要的功能将guest code转化成host code执行。当IO事件发生的时候，vCPU线程会引发<code>VM exit</code>，退出到KVM中，KVM负责判断自身能否处理，如果不能，则将事件交由qemu进行处理。这个过程中，如果访问的地址空间被标特殊的ioeventfd所绑定，那么KVM会利用<code>eventfd()</code>系统调用对该eventfd发出signal，对应的eventfd的状态发生改变，之后直接返回guest mode继续执行，即vCPU直接返回。</p>
+<p>这里的ioeventfd与一个地址addr绑定，地址addr在qemu中被封装成MemoryRegion。在绑定的过程中，可以选择是完全匹配还是任意匹配。所谓完全匹配就是虚拟机向地址写入的值与预先设定的值相同时才触发ioeventfd，否则使用通用的IO分发处理。而任意匹配则不考虑虚拟机写入的值。</p>
+<p>而qemu事件循环正在poll过程中等待，发现eventfd状态改变之后<code>poll</code>返回，进行check、dispatch等处理。在qemu事件循环的处理过程中，事件循环会使用系统调用<code>io_submit()</code>来调用对应实际设备的驱动，由驱动再控制实际的设备，实际设备开始异步工作，系统从内核态返回用户态，由qemu继续执行下一步的操作（例如进行下一次的事件循环）。这样就实现了一次IO事件到qemu事件循环的分配，这中间不需要中途切换到用户态qemu的vCPU线程执行，只需要qemu事件循环对eventfd响应之后进行IO处理即可。</p>
+<p><img src="https://i.loli.net/2021/07/22/eTpcBF1LjCoKhNU.png" srcset="/img/loading.gif" lazyload alt="image-20210722143145415" style="zoom:70%;" /></p>
+<p>事件完成后，事件返回会遵循一个相反的方向。设备驱动发送事件完成的消息，KVM收到后向特定的eventfd发送signal，qemu事件循环进行后续处理，结束后返回KVM。KVM朝vCPU线程发送中断，表示此时IO已经完成。</p>
+<p><img src="https://i.loli.net/2021/07/22/3E9lvBWXTRhZKJy.png" srcset="/img/loading.gif" lazyload alt="image-20210722143401995" style="zoom:70%;" /></p>
+<h4 id="1-4-3-ioeventfd的注册"><a href="#1-4-3-ioeventfd的注册" class="headerlink" title="1.4.3 ioeventfd的注册"></a>1.4.3 ioeventfd的注册</h4><p>qemu中eventfd会与特定的MemoryRegion进行绑定，这里我们需要研究清楚qemu中ioeventfd的注册机制，从而便于我们在实际程序中验证。</p>
+<p>首先，ioeventfd的完整注册机制分成两部分：qemu的注册和kvm的注册。qemu的注册主要是为了将特定的eventfd与对应的I/O地址绑定起来；kvm的注册则是为了在kvm处理IO时能够将特殊的地址筛选出来进行单独的处理，两者相辅相成、不可或缺。</p>
+<p>qemu注册时需要一个<code>EventNotifier</code>的结构体，这个结构体保存了一个<code>rfd</code>和一个<code>wfd</code>。当系统支持eventfd的时候，两者都等于eventfd系统调用返回的fd；若系统支持，则qemu会自己利用pipe模拟eventfd，此时两者就分别是pipe的两个端口。完成了EventNotifier的注册之后，qemu利用<code>memory_region_add_eventfd</code>来将MemoryRegion和eventfd（此时已经包装成了EventNotifier）绑定。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-type">void</span> <span class="hljs-title function_">memory_region_add_eventfd</span><span class="hljs-params">(MemoryRegion *mr,</span><br><span class="hljs-params">                               hwaddr addr,</span><br><span class="hljs-params">                               <span class="hljs-type">unsigned</span> size,</span><br><span class="hljs-params">                               <span class="hljs-type">bool</span> match_data,</span><br><span class="hljs-params">                               <span class="hljs-type">uint64_t</span> data,</span><br><span class="hljs-params">                               EventNotifier *e)</span><br>&#123;<br>    MemoryRegionIoeventfd mrfd = &#123;<br>        .addr.start = int128_make64(addr),<br>        .addr.size = int128_make64(size),<br>        .match_data = match_data,<br>        .data = data,<br>        .e = e,<br>    &#125;;<br>    <span class="hljs-type">unsigned</span> i;<br><br>    <span class="hljs-keyword">if</span> (kvm_enabled() &amp;&amp; (!(kvm_eventfds_enabled() ||<br>                            userspace_eventfd_warning))) &#123;<br>        userspace_eventfd_warning = <span class="hljs-literal">true</span>;<br>        error_report(<span class="hljs-string">&quot;Using eventfd without MMIO binding in KVM. &quot;</span><br>                     <span class="hljs-string">&quot;Suboptimal performance expected&quot;</span>);<br>    &#125;<br><br>    <span class="hljs-keyword">if</span> (size) &#123;<br>        adjust_endianness(mr, &amp;mrfd.data, size_memop(size) | MO_TE);<br>    &#125;<br>    memory_region_transaction_begin();<br>    <span class="hljs-keyword">for</span> (i = <span class="hljs-number">0</span>; i &lt; mr-&gt;ioeventfd_nb; ++i) &#123;<br>        <span class="hljs-keyword">if</span> (memory_region_ioeventfd_before(&amp;mrfd, &amp;mr-&gt;ioeventfds[i])) &#123;<br>            <span class="hljs-keyword">break</span>;<br>        &#125;<br>    &#125;<br>    ++mr-&gt;ioeventfd_nb;<br>    mr-&gt;ioeventfds = g_realloc(mr-&gt;ioeventfds,<br>                                  <span class="hljs-keyword">sizeof</span>(*mr-&gt;ioeventfds) * mr-&gt;ioeventfd_nb);<br>    memmove(&amp;mr-&gt;ioeventfds[i+<span class="hljs-number">1</span>], &amp;mr-&gt;ioeventfds[i],<br>            <span class="hljs-keyword">sizeof</span>(*mr-&gt;ioeventfds) * (mr-&gt;ioeventfd_nb<span class="hljs-number">-1</span> - i));<br>    mr-&gt;ioeventfds[i] = mrfd;<br>    ioeventfd_update_pending |= mr-&gt;enabled;<br>    memory_region_transaction_commit();<br>&#125;<br></code></pre></td></tr></table></figure>
+<p>MemoryRegion中有指针用于保存MemoryRegion对应的全部ioeventfd，这里所做的就是将空间进行扩充，然后在最末位加上当前要加上的eventfd。完成这一步之后，MemoryRegion就已经和对应的某一个eventfd绑定起来了。这里值得注意的是函数参数match_data，这个参数表示是否需要匹配写入的值，如果为true，则必须要虚拟机往该地址写入某值的时候，才会触发ioeventfd。</p>
+<p>kvm注册则是通过qemu的处理，调用kvm的相关系统调用，进入到kvm的代码中进行处理的。在qemu中，<code>kvm_mem_ioeventfd_add</code>负责MMIO的地址，而<code>kvm_io_ioeventfd_add</code>负责PIO的地址。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-type">static</span> <span class="hljs-type">void</span> <span class="hljs-title function_">kvm_io_ioeventfd_add</span><span class="hljs-params">(MemoryListener *listener,</span><br><span class="hljs-params">                                 MemoryRegionSection *section,</span><br><span class="hljs-params">                                 <span class="hljs-type">bool</span> match_data, <span class="hljs-type">uint64_t</span> data,</span><br><span class="hljs-params">                                 EventNotifier *e)</span><br>&#123;<br>    <span class="hljs-type">int</span> fd = event_notifier_get_fd(e);<br>    <span class="hljs-type">int</span> r;<br><br>    r = kvm_set_ioeventfd_pio(fd, section-&gt;offset_within_address_space,<br>                              data, <span class="hljs-literal">true</span>, int128_get64(section-&gt;size),<br>                              match_data);<br>    <span class="hljs-keyword">if</span> (r &lt; <span class="hljs-number">0</span>) &#123;<br>        <span class="hljs-built_in">fprintf</span>(<span class="hljs-built_in">stderr</span>, <span class="hljs-string">&quot;%s: error adding ioeventfd: %s (%d)\n&quot;</span>,<br>                __func__, strerror(-r), -r);<br>        <span class="hljs-built_in">abort</span>();<br>    &#125;<br>&#125;<br><br><span class="hljs-type">static</span> <span class="hljs-type">int</span> <span class="hljs-title function_">kvm_set_ioeventfd_pio</span><span class="hljs-params">(<span class="hljs-type">int</span> fd, <span class="hljs-type">uint16_t</span> addr, <span class="hljs-type">uint16_t</span> val,</span><br><span class="hljs-params">                                 <span class="hljs-type">bool</span> assign, <span class="hljs-type">uint32_t</span> size, <span class="hljs-type">bool</span> datamatch)</span><br>&#123;<br>    <span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">kvm_ioeventfd</span> <span class="hljs-title">kick</span> =</span> &#123;<br>        .datamatch = datamatch ? adjust_ioeventfd_endianness(val, size) : <span class="hljs-number">0</span>,<br>        .addr = addr,<br>        .flags = KVM_IOEVENTFD_FLAG_PIO,<br>        .len = size,<br>        .fd = fd,<br>    &#125;;<br>    <span class="hljs-type">int</span> r;<br>    trace_kvm_set_ioeventfd_pio(fd, addr, val, assign, size, datamatch);<br>    <span class="hljs-keyword">if</span> (!kvm_enabled()) &#123;<br>        <span class="hljs-keyword">return</span> -ENOSYS;<br>    &#125;<br>    <span class="hljs-keyword">if</span> (datamatch) &#123;<br>        kick.flags |= KVM_IOEVENTFD_FLAG_DATAMATCH;<br>    &#125;<br>    <span class="hljs-keyword">if</span> (!assign) &#123;<br>        kick.flags |= KVM_IOEVENTFD_FLAG_DEASSIGN;<br>    &#125;<br>    r = kvm_vm_ioctl(kvm_state, KVM_IOEVENTFD, &amp;kick);<br>    <span class="hljs-keyword">if</span> (r &lt; <span class="hljs-number">0</span>) &#123;<br>        <span class="hljs-keyword">return</span> r;<br>    &#125;<br>    <span class="hljs-keyword">return</span> <span class="hljs-number">0</span>;<br>&#125;<br></code></pre></td></tr></table></figure>
+<p>在上面的代码中我们可以看到最终从qemu调用<code>ioctl</code>进入到kvm模块中处理。</p>
+<h4 id="1-4-4-io-submit"><a href="#1-4-4-io-submit" class="headerlink" title="1.4.4 io_submit"></a>1.4.4 <code>io_submit</code></h4><p>这里简要介绍一下<code>io_submit</code>的相关内容，更多细节可以查看linux man-pages中<code>io_submit</code>的内容[14]。</p>
+<p><code>io_submit</code>的函数声明如下：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-meta">#<span class="hljs-keyword">include</span> <span class="hljs-string">&lt;linux/aio_abi.h&gt;</span>          <span class="hljs-comment">/* Defines needed types */</span></span><br><br><span class="hljs-type">int</span> <span class="hljs-title function_">io_submit</span><span class="hljs-params">(<span class="hljs-type">aio_context_t</span> ctx_id, <span class="hljs-type">long</span> nr, <span class="hljs-keyword">struct</span> iocb **iocbpp)</span>;<br></code></pre></td></tr></table></figure>
+<p>这个系统调用中最重要的是第一个参数和第三个参数。第一个参数是我们在前面提到的事件循环的事件源。在qemu中，这个事件源可以是主循环线程中的事件源，也可以是IO线程中的事件源。而第三个参数则是一个由内核定义的结构体：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-meta">#<span class="hljs-keyword">include</span> <span class="hljs-string">&lt;linux/aio_abi.h&gt;</span></span><br><br><span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">iocb</span> &#123;</span><br>    __u64   aio_data;<br>    __u32   <span class="hljs-title function_">PADDED</span><span class="hljs-params">(aio_key, aio_rw_flags)</span>;<br>    __u16   aio_lio_opcode;<br>    __s16   aio_reqprio;<br>    __u32   aio_fildes;<br>    __u64   aio_buf;<br>    __u64   aio_nbytes;<br>    __s64   aio_offset;<br>    __u64   aio_reserved2;<br>    __u32   aio_flags;<br>    __u32   aio_resfd;<br>&#125;;<br></code></pre></td></tr></table></figure>
+<p>这个结构体包含了非常多的信息，其中我们比较关心的是<code>aio_fildes</code>，这个成员变量表示的是IO事件真正操作的文件描述符。</p>
+<p>可以看到，我们通过这样的一个异步IO的系统调用，可以对特定的设备（e.g. 硬盘、网卡）进行IO操作，其中真正操作的fd就是在iocb中的<code>aio_fildes</code>。</p>
+<p>在qemu中我们可以看到这个系统调用的使用实例：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-comment">// linux-aio.c:ioq_submit()</span><br><br>len = <span class="hljs-number">0</span>;<br>QSIMPLEQ_FOREACH(aiocb, &amp;s-&gt;io_q.pending, next) &#123;<br>    iocbs[len++] = &amp;aiocb-&gt;iocb;<br>    <span class="hljs-keyword">if</span> (s-&gt;io_q.in_flight + len &gt;= MAX_EVENTS) &#123;<br>        <span class="hljs-keyword">break</span>;<br>    &#125;<br>&#125;<br><br>ret = io_submit(s-&gt;ctx, len, iocbs);<br></code></pre></td></tr></table></figure>
+<h4 id="1-4-5-TCG中对eventfd的修改"><a href="#1-4-5-TCG中对eventfd的修改" class="headerlink" title="1.4.5 TCG中对eventfd的修改"></a>1.4.5 TCG中对eventfd的修改</h4><p>借助edu设备的IO过程，我们可以发现vCPU线程执行到IO事件发生的全过程。下图是edu设备进行写操作的过程：</p>
+<p><img src="https://i.loli.net/2021/07/24/Nu89Obrt4Siz17X.png" srcset="/img/loading.gif" lazyload alt="image-20210724103524722"></p>
+<p>首先，vCPU对代码块进行翻译，发现了IO事件，从而调用<code>io_writex</code>函数。后者对各种可能的情况进行判断，然后进入<code>memory_region_dispatch_write</code>。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-type">static</span> <span class="hljs-type">void</span> <span class="hljs-title function_">io_writex</span><span class="hljs-params">(CPUArchState *env, CPUIOTLBEntry *iotlbentry,</span><br><span class="hljs-params">                      <span class="hljs-type">int</span> mmu_idx, <span class="hljs-type">uint64_t</span> val, target_ulong addr,</span><br><span class="hljs-params">                      <span class="hljs-type">uintptr_t</span> retaddr, MemOp op)</span><br>&#123;<br>    CPUState *cpu = env_cpu(env);<br>    hwaddr mr_offset;<br>    MemoryRegionSection *section;<br>    MemoryRegion *mr;<br>    <span class="hljs-type">bool</span> locked = <span class="hljs-literal">false</span>;<br>    MemTxResult r;<br><br>    section = iotlb_to_section(cpu, iotlbentry-&gt;addr, iotlbentry-&gt;attrs);<br>    mr = section-&gt;mr;<br>    mr_offset = (iotlbentry-&gt;addr &amp; TARGET_PAGE_MASK) + addr;<br>    <span class="hljs-keyword">if</span> (!cpu-&gt;can_do_io) &#123;<br>        cpu_io_recompile(cpu, retaddr);<br>    &#125;<br>    cpu-&gt;mem_io_pc = retaddr;<br><br>    <span class="hljs-comment">/*</span><br><span class="hljs-comment">     * The memory_region_dispatch may trigger a flush/resize</span><br><span class="hljs-comment">     * so for plugins we save the iotlb_data just in case.</span><br><span class="hljs-comment">     */</span><br>    save_iotlb_data(cpu, iotlbentry-&gt;addr, section, mr_offset);<br><br>    <span class="hljs-keyword">if</span> (!qemu_mutex_iothread_locked()) &#123;<br>        qemu_mutex_lock_iothread();<br>        locked = <span class="hljs-literal">true</span>;<br>    &#125;<br>    r = memory_region_dispatch_write(mr, mr_offset, val, op, iotlbentry-&gt;attrs);<br>    <span class="hljs-keyword">if</span> (r != MEMTX_OK) &#123;<br>        hwaddr physaddr = mr_offset +<br>            section-&gt;offset_within_address_space -<br>            section-&gt;offset_within_region;<br><br>        cpu_transaction_failed(cpu, physaddr, addr, memop_size(op),<br>                               MMU_DATA_STORE, mmu_idx, iotlbentry-&gt;attrs, r,<br>                               retaddr);<br>    &#125;<br>    <span class="hljs-keyword">if</span> (locked) &#123;<br>        qemu_mutex_unlock_iothread();<br>    &#125;<br>&#125;<br></code></pre></td></tr></table></figure>
+<p>在<code>memory_region_dispatch_write</code>中，qemu首先判断这个mmio的地址是否合理，若不合理，则直接返回错误。同时此时也会进行判断，如果没有当前的qemu开启kvm，但是写操作是针对一个特殊的<code>MemoryRegion</code>，这个<code>MemoryRegion</code>直接对应一个<code>eventfd</code>，那么就会修改eventfd并返回。接下来的工作就交给qemu的事件循环去完成了。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br></pre></td><td class="code"><pre><code class="hljs c">MemTxResult <span class="hljs-title function_">memory_region_dispatch_write</span><span class="hljs-params">(MemoryRegion *mr,</span><br><span class="hljs-params">                                         hwaddr addr,</span><br><span class="hljs-params">                                         <span class="hljs-type">uint64_t</span> data,</span><br><span class="hljs-params">                                         MemOp op,</span><br><span class="hljs-params">                                         MemTxAttrs attrs)</span><br>&#123;<br>    <span class="hljs-type">unsigned</span> size = memop_size(op);<br><br>    <span class="hljs-keyword">if</span> (!memory_region_access_valid(mr, addr, size, <span class="hljs-literal">true</span>, attrs)) &#123;<br>        unassigned_mem_write(mr, addr, data, size);<br>        <span class="hljs-keyword">return</span> MEMTX_DECODE_ERROR;<br>    &#125;<br><br>    adjust_endianness(mr, &amp;data, op);<br><br>    <span class="hljs-keyword">if</span> ((!kvm_eventfds_enabled()) &amp;&amp;<br>        memory_region_dispatch_write_eventfds(mr, addr, data, size, attrs)) &#123;<br>        <span class="hljs-keyword">return</span> MEMTX_OK;<br>    &#125;<br><br>    <span class="hljs-keyword">if</span> (mr-&gt;ops-&gt;write) &#123;<br>        <span class="hljs-keyword">return</span> access_with_adjusted_size(addr, &amp;data, size,<br>                                         mr-&gt;ops-&gt;impl.min_access_size,<br>                                         mr-&gt;ops-&gt;impl.max_access_size,<br>                                         memory_region_write_accessor, mr,<br>                                         attrs);<br>    &#125; <span class="hljs-keyword">else</span> &#123;<br>        <span class="hljs-keyword">return</span><br>            access_with_adjusted_size(addr, &amp;data, size,<br>                                      mr-&gt;ops-&gt;impl.min_access_size,<br>                                      mr-&gt;ops-&gt;impl.max_access_size,<br>                                      memory_region_write_with_attrs_accessor,<br>                                      mr, attrs);<br>    &#125;<br>&#125;<br><br><span class="hljs-comment">/* Return true if an eventfd was signalled */</span><br><span class="hljs-type">static</span> <span class="hljs-type">bool</span> <span class="hljs-title function_">memory_region_dispatch_write_eventfds</span><span class="hljs-params">(MemoryRegion *mr,</span><br><span class="hljs-params">                                                    hwaddr addr,</span><br><span class="hljs-params">                                                    <span class="hljs-type">uint64_t</span> data,</span><br><span class="hljs-params">                                                    <span class="hljs-type">unsigned</span> size,</span><br><span class="hljs-params">                                                    MemTxAttrs attrs)</span><br>&#123;<br>    MemoryRegionIoeventfd ioeventfd = &#123;<br>        .addr = addrrange_make(int128_make64(addr), int128_make64(size)),<br>        .data = data,<br>    &#125;;<br>    <span class="hljs-type">unsigned</span> i;<br><br>    <span class="hljs-keyword">for</span> (i = <span class="hljs-number">0</span>; i &lt; mr-&gt;ioeventfd_nb; i++) &#123;<br>        ioeventfd.match_data = mr-&gt;ioeventfds[i].match_data;<br>        ioeventfd.e = mr-&gt;ioeventfds[i].e;<br><br>        <span class="hljs-keyword">if</span> (memory_region_ioeventfd_equal(&amp;ioeventfd, &amp;mr-&gt;ioeventfds[i])) &#123;<br>            event_notifier_set(ioeventfd.e);<br>            <span class="hljs-keyword">return</span> <span class="hljs-literal">true</span>;<br>        &#125;<br>    &#125;<br><br>    <span class="hljs-keyword">return</span> <span class="hljs-literal">false</span>;<br>&#125;<br></code></pre></td></tr></table></figure>
+<p>下面这个函数就是对fd进行修改的函数：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-type">int</span> <span class="hljs-title function_">event_notifier_set</span><span class="hljs-params">(EventNotifier *e)</span><br>&#123;<br>    <span class="hljs-type">static</span> <span class="hljs-type">const</span> <span class="hljs-type">uint64_t</span> value = <span class="hljs-number">1</span>;<br>    <span class="hljs-type">ssize_t</span> ret;<br><br>    <span class="hljs-keyword">do</span> &#123;<br>        ret = write(e-&gt;wfd, &amp;value, <span class="hljs-keyword">sizeof</span>(value));<br>    &#125; <span class="hljs-keyword">while</span> (ret &lt; <span class="hljs-number">0</span> &amp;&amp; errno == EINTR);<br><br>    <span class="hljs-comment">/* EAGAIN is fine, a read must be pending.  */</span><br>    <span class="hljs-keyword">if</span> (ret &lt; <span class="hljs-number">0</span> &amp;&amp; errno != EAGAIN) &#123;<br>        <span class="hljs-keyword">return</span> -errno;<br>    &#125;<br>    <span class="hljs-keyword">return</span> <span class="hljs-number">0</span>;<br>&#125;<br></code></pre></td></tr></table></figure>
+<p>接下来我们通过实例来验证tcg对eventfd的修改。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><code class="hljs bash"><span class="hljs-comment"># 启动脚本</span><br><span class="hljs-comment">#!/bin/bash</span><br><br>gdb --args \<br>	qemu-system-x86_64 \<br>	-m 8G \<br>	-smp 8,sockets=8 \<br>	-drive file=ubuntu.img,<span class="hljs-keyword">if</span>=virtio \<br>	-accel tcg<br></code></pre></td></tr></table></figure>
+<p>启动之后，我们在<code>memory_region_dispatch_write_eventfds</code>上打上条件断点</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs bash">b memory_region_dispatch_write_eventfds <span class="hljs-keyword">if</span> mr-&gt;ioeventfd_nb &gt; 0<br></code></pre></td></tr></table></figure>
+<p>由之前的代码我们可以看到，vCPU线程通过这个函数判断系统是否有需要的eventfd需要处理，其第一个判断条件就是<code>ioeventfd_nb</code>的大小，我们不能单纯根据系统是否命中断点来判断系统是否正在进行ioeventfd的处理。而解决的方法就是考虑<code>mr-&gt;ioeventfd_nb</code>是否大于零。一旦<code>mr-&gt;ioeventfd_nb</code>大于零，就证明确实有需要处理的ioeventfd等待被处理，接下来函数体内就会对其中的ioeventfd进行处理，具体方式就是代码中的<code>event_notifier_set</code>，这个函数此前验证kvm的时候已经见过，我们利用这个函数来修改eventfd。</p>
+<p><img src="https://i.loli.net/2021/07/31/Pg5ym34nbZjd7Qw.png" srcset="/img/loading.gif" lazyload alt="tcg_test"></p>
+<p>接下来我们专门考虑一个eventfd，看看qemu在修改完之后是否会对其进行处理。这里我们选择fd为12的eventfd，首先查看到qemu的vCPU线程调用相应的函数对其发送了信号，这时候eventfd的状态被修改，qemu的事件循环能够检测到这一变化，进而从poll返回，对其进行处理。我们下一步的断点就设置在了<code>glib_pollfds_poll</code>上。这个函数中对ready的fd进行check和dispatch两个步骤。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-type">static</span> <span class="hljs-type">void</span> <span class="hljs-title function_">glib_pollfds_poll</span><span class="hljs-params">(<span class="hljs-type">void</span>)</span><br>&#123;<br>    GMainContext *context = g_main_context_default();<br>    GPollFD *pfds = &amp;g_array_index(gpollfds, GPollFD, glib_pollfds_idx);<br><br>    <span class="hljs-keyword">if</span> (g_main_context_check(context, max_priority, pfds, glib_n_poll_fds)) &#123;<br>        g_main_context_dispatch(context);<br>    &#125;<br>&#125;<br></code></pre></td></tr></table></figure>
+<p>我们直接查看结构体<code>gpollfds</code>的fd（最左侧一排），可以看到其中含有<code>0x0c</code>，即值为12的eventfd。</p>
+<p><img src="https://i.loli.net/2021/08/05/OIs1lrxw2VbYpSm.png" srcset="/img/loading.gif" lazyload alt="tcg_test"></p>
+<p>从而可以看到，值为12的eventfd状态的确发生了变化，而事件循环监听变化后也开始进行后续的处理。</p>
+<h4 id="1-4-6-纯阻塞方式运行IO"><a href="#1-4-6-纯阻塞方式运行IO" class="headerlink" title="1.4.6 纯阻塞方式运行IO"></a>1.4.6 纯阻塞方式运行IO</h4><p>qemu中也有纯阻塞CPU的方式运行IO。我们使用edu设备的时候，可以使用<code>devmem</code>的命令直接对edu的内存空间进行读写操作，此时qemu的运行方式就是纯阻塞的方式：</p>
+<p><img src="https://i.loli.net/2021/07/24/9tZXw7FeA8MjBp4.png" srcset="/img/loading.gif" lazyload alt="image-20210724102043955"></p>
+<p>在edu执行read操作的时候，我们可以看到整个IO操作都在vCPU线程上完成，没有事件循环的参与。</p>
+<p>同时启动kvm的时候，也能够查看到相应的情况，只不过是从kvm的vCPU线程返回进行处理。</p>
+<p><img src="https://i.loli.net/2021/08/06/l9W3cbP2YNkTt1E.png" srcset="/img/loading.gif" lazyload alt="kvm_block_test" style="zoom:80%;" /></p>
+<p>这个IO方式与此前的不同，此前的IO是异步的，也就是说，CPU在发现IO事件后，进行一段较短时间的处理之后，返回继续执行，直到IO事件完成后向CPU发送中断，CPU接收中断信号后暂停当前的处理，再处理完成了的IO事件。整个IO过程中，CPU只需要在开始前和结束后介入即可。而同步的IO则与之相反，同步IO会阻塞CPU的运行，直到IO事件完成后返回，CPU才会继续执行下一条指令。</p>
+<h4 id="1-4-7-总结"><a href="#1-4-7-总结" class="headerlink" title="1.4.7 总结"></a>1.4.7 总结</h4><p>vCPU线程在不同的acceleration下会有不同的表现（tcg、kvm、hvf…），在不同的IO机制下也会有不同的执行方法。</p>
+<p>最直接的IO方式就是阻塞的方式执行IO事件，这类IO事件一般需要CPU直接参与，或CPU需要等待IO事件完成之后才能进行下一步的操作，这种事件的执行也非常简单，直接在vCPU线程上调用对应的函数即可。</p>
+<p>KVM下，如果遇到virtio事件，会进入到kvm-virtio的处理流程。kvm负责判断地址是否是eventfd的地址，如果是就会向该fd发送信号。eventfd得到信号之后状态发生改变，qemu的事件循环会对此做出响应，根据事件循环的运转流程，对eventfd对应的回调函数进行处理。</p>
+<p>TCG下，如果遇到virtio事件，会对事件进行分类，判断事件是PIO还是MMIO，然后再判断对应的地址是否是eventfd，如果不是，则阻塞CPU，在vCPU线程上直接运行IO；如果是eventfd，则直接对fd进行修改，然后返回CPU继续执行，对应的事件会被主循环线程捕获，在主循环线程中执行相应的IO事件，在IO实现完成之后，再返回。</p>
+<h3 id="1-5-IO线程"><a href="#1-5-IO线程" class="headerlink" title="1.5 IO线程"></a>1.5 IO线程</h3><p>提供IO线程主要的目的就是提升多核心设备的性能。IO线程类似于<code>main loop</code>，但它将<em>“prepare, poll, check, dispatch”</em>组合成了一个API：<code>aio_poll()</code>。</p>
+<p>在qemu中，可以通过命令行参数的方式创建一个新的IO线程：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs bash">-object iothread,<span class="hljs-built_in">id</span>=my-iothread<br></code></pre></td></tr></table></figure>
+<p>接着启动qemu后，可以在qemu monitor中查看到对应的参数</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><code class="hljs shell"><span class="hljs-meta prompt_"># </span><span class="language-bash">qemu monitor</span><br>(qemu)info iothreads<br>my-iothread:<br>	thread_id=579456<br>	poll-max-nx=32768<br>	poll-grow=0<br>	poll-shrink=0<br></code></pre></td></tr></table></figure>
+<p>在gdb中也可以查到对应的线程：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs shell">Thread 0xffffe2540570 (LWP 579851) &quot;qemu-system-ppc&quot; 0x0000fffff5a03234 in __ppoll (fds=0xffffcc002420, nfds=1, <br>    timeout=&lt;optimized out&gt;, sigmask=0x0) at ../sysdeps/unix/sysv/linux/ppoll.c:44<br></code></pre></td></tr></table></figure>
+<h3 id="1-6-Worker-Thread"><a href="#1-6-Worker-Thread" class="headerlink" title="1.6 Worker Thread"></a>1.6 Worker Thread</h3><p>尽管很多I/O操作可以非阻塞的完成，有一些系统调用是没有非阻塞的替代方法可用的。而且有些耗时的计算操作就是需要简单粗暴地占用CPU，我们也很难把它们分解为回调函数。Worker thread是专用线程，在主循环线程的长时间等待会导致qemu无响应，不利于qemu的使用。因此，我们可以将其负载转移到专用的worker thread上运行。当一个工作线程需要通知qemu主线程时，可以将一个pipe或一个<code>qemu_eventfd</code>文件描述符添加到事件循环中。worker thread 向文件描述符写入，而当文件描述符变成可读的时候，事件循环会调用回调函数。</p>
+<p>在qemu中，worker thread的使用是非常普遍的，一般情况下，会有数百个worker thread根据情况的不同而生成，完成任务之后又会退出。</p>
+<h2 id="2-不同线程的特点"><a href="#2-不同线程的特点" class="headerlink" title="2. 不同线程的特点"></a>2. 不同线程的特点</h2><ul>
+<li>vCPU线程不运行事件循环</li>
+<li>主循环线程和IO线程运行事件循环</li>
+<li>vCPU线程可以将事件源添加到主循环或IO线程的事件循环中</li>
+<li>回调函数在主循环线程或IO线程中运行</li>
+</ul>
+<h2 id="3-主循环线程和IO线程之间的区别"><a href="#3-主循环线程和IO线程之间的区别" class="headerlink" title="3. 主循环线程和IO线程之间的区别"></a>3. 主循环线程和IO线程之间的区别</h2><blockquote>
+<p>qemu提供的原生事件循环API：<code>AioContext</code></p>
+<p>常用的函数：</p>
+<ol>
+<li><p><code>aio_set_fd_handler()</code></p>
+</li>
+<li><p><code>aio_set_event_handler()</code></p>
+</li>
+<li><code>aio_timer_init()</code></li>
+<li><code>aio_bh_new()</code> </li>
+</ol>
+</blockquote>
+<p>主循环使用一个<code>glib GMainContext</code> 和两个 <code>AioContext</code> 事件循环。QEMU的组件可以使用任何一种事件循环的API。主循环也将其整合成了一个事件循环函数<code>os_host_main_loop_wait</code>，其调用<code>qemu_poll_nx</code>来等待事件源。这样的做法将基于glib的代码和使用QEMU原生的<code>AioContext</code>API的代码整合在了一起。</p>
+<p>IO线程使用一个<code>glib GMainContext</code>和一个<code>AioContext</code>。<code>AioContext</code>使用<code>aio_poll()</code>的API运行，这使得一些事件循环高级功能被启用。如果需要使用<code>glib</code>的事件循环，<code>GMainContext</code>可以使用<code>g_main_loop_run()</code>运行，<code>AioContext</code>的事件源也会被包括在内。</p>
+<ul>
+<li><p>对于qemu原生的API来说，使用<code>aio_*()</code>的代码可以运行在主循环或者IO循环，而使用<code>qemu_*()</code>的老代码只能运行在主循环中。</p>
+</li>
+<li><p>对于<code>glib</code>来说，所有的代码都可以运行在主循环或者IO循环中</p>
+</li>
+</ul>
+<p>两种循环最关键的区别在于：</p>
+<ul>
+<li><p>主循环使用的是传统的事件循环，它调用<code>qemu_poll_ns()</code></p>
+</li>
+<li><p>IO循环的<code>AioContext</code>调用<code>aio_poll()</code>，这个API拥有更高级的特性和更好的性能</p>
+</li>
+</ul>
+<h2 id="4-qemu的两种事件循环API"><a href="#4-qemu的两种事件循环API" class="headerlink" title="4. qemu的两种事件循环API"></a>4. qemu的两种事件循环API</h2><h3 id="4-1-glib-GMainContext"><a href="#4-1-glib-GMainContext" class="headerlink" title="4.1 glib GMainContext"></a>4.1 <code>glib GMainContext</code></h3><h4 id="4-1-1-GMainContext"><a href="#4-1-1-GMainContext" class="headerlink" title="4.1.1 GMainContext"></a>4.1.1 <code>GMainContext</code></h4><p><code>Glib</code>是一个由三个用C语言编写的 low-level system libraries 组成的捆绑包。</p>
+<blockquote>
+<p><strong>GMainContext</strong> is a generalized implementation of an <strong>event loop</strong>, useful for implementing polled file I/O or event-based widget systems (such as GTK+). It is at the core of almost every GLib application. </p>
+<p>A GMainContext has a set of <strong>GSources</strong> which are ‘attached’ to it, each of which can be thought of as an expected event with an associated callback function which will be invoked when that event is received; or equivalently as a set of <strong>file descriptors</strong> (FDs) to check. An event could be a timeout or data being received on a socket, for example.</p>
+</blockquote>
+<p>可以看到<code>GMainContext</code>中包含了许多内容，其中的<code>timeout</code>可以为 <em>poll</em> 阶段服务，当超过这个时间的等待之后，线程将直接返回，以此来避免对线程长时间的阻塞。此外，<code>GMainContext</code>中还包含了一个<code>GSource</code>的列表，<code>GSource</code>相当于事件源。最后，<code>GMainContext</code>中实际还包含诸如锁之类的东西（这里已略去），这可以保证线程的安全。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><code class="hljs c"><br><span class="hljs-class"><span class="hljs-keyword">struct</span> _<span class="hljs-title">GMainContext</span> &#123;</span><br>	...<br>    gint timeout;			<span class="hljs-comment">/* Timeout for current iteration */</span><br><br>    GSource *source_list;   <span class="hljs-comment">// &lt;----------------- GSource</span><br>    ...<br>&#125;;<br></code></pre></td></tr></table></figure>
+<p><code>GSource</code>中包含了文件描述符的列表<code>poll_fds</code>，<strong>poll</strong>阶段时<code>GSource</code>会监听这些文件描述符，当文件描述符的状态发生改变，<code>GSource</code>会相应。而<strong>dispatch</strong>阶段需要的回调函数存在<code>GSourceFuncs</code>中，其他一些辅助数据也包含在<code>GSource</code>中。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-class"><span class="hljs-keyword">struct</span> _<span class="hljs-title">GSource</span> &#123;</span><br>    <span class="hljs-comment">/*&lt; private &gt;*/</span><br>    gpointer callback_data;<br>    GSourceCallbackFuncs *callback_funcs;<br><br>    GSourceFuncs *source_funcs;<br>    guint ref_count;<br><br>    GMainContext *context;<br><br>    gint priority;<br>    guint flags;<br>    guint source_id;<br><br>    GSList *poll_fds;<br><br>    GSource *prev;<br>    GSource *next;<br><br>    <span class="hljs-type">char</span>    *name;<br><br>    GSourcePrivate *priv;<br>&#125;;<br></code></pre></td></tr></table></figure>
+<p>下图是<code>GMainContext</code>的事件循环的四个阶段：</p>
+<p><img src="https://i.loli.net/2021/07/15/U3aNIK9ceySDTGf.gif" srcset="/img/loading.gif" lazyload alt="mainloop-states"></p>
+<p>对应四个阶段，<code>GMainContext</code>有四个核心的API：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs c">gboolean	<span class="hljs-title function_">g_main_context_prepare</span> <span class="hljs-params">()</span><br>gint		<span class="hljs-title function_">g_main_context_query</span> <span class="hljs-params">()</span><br>gboolean	<span class="hljs-title function_">g_main_context_check</span> <span class="hljs-params">()</span><br><span class="hljs-type">void</span>	   <span class="hljs-title function_">g_main_context_dispatch</span> <span class="hljs-params">()</span><br></code></pre></td></tr></table></figure>
+<p>除此之外，我们还有一些关键的API需要了解：</p>
+<ul>
+<li><p><code>GMainContext *g_main_context_default ()</code></p>
+<p>“default” context是<code>GMainContext</code>的支持的一个重要的特性。default context有两种，一种是global default，一种是thread default。因为qemu主要使用的是全局，因此我们这里就专注于global default context。</p>
+<p>这个API相对来说是很简单的，我们在全局保存了一个叫做<code>default_main_context</code>的<code>GMainContext</code>，调用这个函数的时候，我们判断该变量是否已经初始化（即非<code>NULL</code>），若是，直接返回这个全局变量；若否，创建变量，然后返回。</p>
+</li>
+<li><p><code>gboolean g_main_context_acquire()</code></p>
+<p>当一个线程需要完成一次循环之前（即依次进行四个步骤），必须先使用这个函数“获取”<code>GMainContext</code>。这能够保证一个<code>GSource</code>和他对应的<code>FDs</code>只能被一个线程 poll 一次（因为每一个<code>GSource</code>最多只能绑定到一个<code>GMainContext</code>上）。</p>
+</li>
+<li><p><code>void g_main_context_release ()</code></p>
+<p>同上，完成<code>GMainContext</code>的释放。</p>
+</li>
+</ul>
+<h4 id="4-1-2-qemu中的GMainContext"><a href="#4-1-2-qemu中的GMainContext" class="headerlink" title="4.1.2 qemu中的GMainContext"></a>4.1.2 qemu中的<code>GMainContext</code></h4><p>在qemu的主循环线程中主要的函数调用链：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-comment">/* main() --&gt; qemu_main_loop() --&gt; [ main_loop_wait() --&gt; os_host_main_loop_wait() </span><br><span class="hljs-comment"> *															--&gt; qemu_poll_ns() </span><br><span class="hljs-comment"> * 															--&gt; ppoll() / ( --&gt; g_poll() --&gt; poll() ) </span><br><span class="hljs-comment"> *															--&gt; glib_pollfds_poll() ] </span><br><span class="hljs-comment"> *															&lt;while&gt;</span><br><span class="hljs-comment"> */</span><br><br><span class="hljs-type">static</span> <span class="hljs-type">int</span> <span class="hljs-title function_">os_host_main_loop_wait</span><span class="hljs-params">(<span class="hljs-type">int64_t</span> timeout)</span><br>&#123;<br>    GMainContext *context = g_main_context_default();	<span class="hljs-comment">/* init GMainContext */</span><br>    <span class="hljs-type">int</span> ret;<br><br>    g_main_context_acquire(context);	<span class="hljs-comment">/* 调用glib的API：acquire */</span><br><br>    glib_pollfds_fill(&amp;timeout);	<span class="hljs-comment">/* prepare */</span><br><br>    qemu_mutex_unlock_iothread();<br>    replay_mutex_unlock();<br><br>    ret = qemu_poll_ns((GPollFD *)gpollfds-&gt;data, gpollfds-&gt;len, timeout); <span class="hljs-comment">/* poll */</span><br><br>    replay_mutex_lock();<br>    qemu_mutex_lock_iothread();<br><br>    glib_pollfds_poll();	<span class="hljs-comment">/* check &amp; dispatch */</span><br><br>    g_main_context_release(context); 	<span class="hljs-comment">/* 调用API：release */</span><br><br>    <span class="hljs-keyword">return</span> ret;<br>&#125;<br><br><span class="hljs-type">static</span> <span class="hljs-type">void</span> <span class="hljs-title function_">glib_pollfds_fill</span><span class="hljs-params">(<span class="hljs-type">int64_t</span> *cur_timeout)</span><br>&#123;<br>    GMainContext *context = g_main_context_default();<br>    <span class="hljs-type">int</span> timeout = <span class="hljs-number">0</span>;<br>    <span class="hljs-type">int64_t</span> timeout_ns;<br>    <span class="hljs-type">int</span> n;<br><br>    g_main_context_prepare(context, &amp;max_priority);		<span class="hljs-comment">/* prepare */</span><br><br>    glib_pollfds_idx = gpollfds-&gt;len;<br>    n = glib_n_poll_fds;<br>    <span class="hljs-keyword">do</span> &#123;<br>        GPollFD *pfds;<br>        glib_n_poll_fds = n;<br>        g_array_set_size(gpollfds, glib_pollfds_idx + glib_n_poll_fds);<br>        pfds = &amp;g_array_index(gpollfds, GPollFD, glib_pollfds_idx);<br>        n = g_main_context_query(context, max_priority, &amp;timeout, pfds,<br>                                 glib_n_poll_fds); 						<span class="hljs-comment">/* query */</span><br>    &#125; <span class="hljs-keyword">while</span> (n != glib_n_poll_fds);<br><br>    <span class="hljs-keyword">if</span> (timeout &lt; <span class="hljs-number">0</span>) &#123;<br>        timeout_ns = <span class="hljs-number">-1</span>;<br>    &#125; <span class="hljs-keyword">else</span> &#123;<br>        timeout_ns = (<span class="hljs-type">int64_t</span>)timeout * (<span class="hljs-type">int64_t</span>)SCALE_MS;<br>    &#125;<br><br>    *cur_timeout = qemu_soonest_timeout(timeout_ns, *cur_timeout);<br>&#125;<br><br><span class="hljs-type">int</span> <span class="hljs-title function_">qemu_poll_ns</span><span class="hljs-params">(GPollFD *fds, guint nfds, <span class="hljs-type">int64_t</span> timeout)</span><br>&#123;<br><span class="hljs-meta">#<span class="hljs-keyword">ifdef</span> CONFIG_PPOLL</span><br>    <span class="hljs-keyword">if</span> (timeout &lt; <span class="hljs-number">0</span>) &#123;<br>        <span class="hljs-keyword">return</span> ppoll((<span class="hljs-keyword">struct</span> pollfd *)fds, nfds, <span class="hljs-literal">NULL</span>, <span class="hljs-literal">NULL</span>);<br>    &#125; <span class="hljs-keyword">else</span> &#123;<br>        <span class="hljs-keyword">struct</span> timespec ts;<br>        <span class="hljs-type">int64_t</span> tvsec = timeout / <span class="hljs-number">1000000000LL</span>;<br>        <span class="hljs-comment">/* Avoid possibly overflowing and specifying a negative number of</span><br><span class="hljs-comment">         * seconds, which would turn a very long timeout into a busy-wait.</span><br><span class="hljs-comment">         */</span><br>        <span class="hljs-keyword">if</span> (tvsec &gt; (<span class="hljs-type">int64_t</span>)INT32_MAX) &#123;<br>            tvsec = INT32_MAX;<br>        &#125;<br>        ts.tv_sec = tvsec;<br>        ts.tv_nsec = timeout % <span class="hljs-number">1000000000LL</span>;<br>        <span class="hljs-keyword">return</span> ppoll((<span class="hljs-keyword">struct</span> pollfd *)fds, nfds, &amp;ts, <span class="hljs-literal">NULL</span>);<br>    &#125;<br><span class="hljs-meta">#<span class="hljs-keyword">else</span></span><br>    <span class="hljs-keyword">return</span> g_poll(fds, nfds, qemu_timeout_ns_to_ms(timeout));<br><span class="hljs-meta">#<span class="hljs-keyword">endif</span></span><br>&#125;<br><br><span class="hljs-type">static</span> <span class="hljs-type">void</span> <span class="hljs-title function_">glib_pollfds_poll</span><span class="hljs-params">(<span class="hljs-type">void</span>)</span><br>&#123;<br>    GMainContext *context = g_main_context_default();<br>    GPollFD *pfds = &amp;g_array_index(gpollfds, GPollFD, glib_pollfds_idx);<br><br>    <span class="hljs-keyword">if</span> (g_main_context_check(context, max_priority, pfds, glib_n_poll_fds)) &#123;	<span class="hljs-comment">/* check */</span><br>        g_main_context_dispatch(context);										<span class="hljs-comment">/* dispatch */</span><br>    &#125;<br>&#125;<br></code></pre></td></tr></table></figure>
+<p>除此之外，qemu中还有通过<code>g_main_loop</code>开启一个事件循环的方式。这个loop是glib自带的默认方式，通过glib的API可以直接启动glib的事件循环。</p>
+<h3 id="4-2-AioContext"><a href="#4-2-AioContext" class="headerlink" title="4.2 AioContext"></a>4.2 <code>AioContext</code></h3><p><code>AioContext</code>是qemu事件循环的原生实现，这里的原生实现实际上是指在glib的框架下自定义数据结构<code>AioContext</code>和其对应的函数。这里的基本要求是第一个元素必须是<code>GSource</code>。<code>GSource</code>中包含了一个重要的成员——<code>GSourceFuncs</code>，这是一个结构体，里面保存了在一个事件循环中会使用到的函数指针。</p>
+<p>他的定义在<code>/include/block/aio.h</code>中，其中有非常详细的注释信息。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">AioContext</span> &#123;</span><br>    GSource source;<br><br>    <span class="hljs-comment">/* Used by AioContext users to protect from multi-threaded access.  */</span><br>    QemuRecMutex lock;<br><br>    <span class="hljs-comment">/* The list of registered AIO handlers.  Protected by ctx-&gt;list_lock. */</span><br>    AioHandlerList aio_handlers;<br><br>    <span class="hljs-comment">/* The list of AIO handlers to be deleted.  Protected by ctx-&gt;list_lock. */</span><br>    AioHandlerList deleted_aio_handlers;<br><br>    <br>    <span class="hljs-type">uint32_t</span> notify_me;<br><br>    QemuLockCnt list_lock;<br><br>    <span class="hljs-comment">/* Bottom Halves pending aio_bh_poll() processing */</span><br>    BHList bh_list;<br><br>    <span class="hljs-comment">/* Chained BH list slices for each nested aio_bh_poll() call */</span><br>    QSIMPLEQ_HEAD(, BHListSlice) bh_slice_list;<br>    <br>    <span class="hljs-type">bool</span> notified;<br>    EventNotifier notifier;<br><br>    QSLIST_HEAD(, Coroutine) scheduled_coroutines;<br>    QEMUBH *co_schedule_bh;<br><br>    <span class="hljs-comment">/* Thread pool for performing work and receiving completion callbacks.</span><br><span class="hljs-comment">     * Has its own locking.</span><br><span class="hljs-comment">     */</span><br>    <span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">ThreadPool</span> *<span class="hljs-title">thread_pool</span>;</span><br><br><span class="hljs-meta">#<span class="hljs-keyword">ifdef</span> CONFIG_LINUX_AIO</span><br>    ...<br><span class="hljs-meta">#<span class="hljs-keyword">endif</span></span><br><span class="hljs-meta">#<span class="hljs-keyword">ifdef</span> CONFIG_LINUX_IO_URING</span><br>    ...<br><span class="hljs-meta">#<span class="hljs-keyword">endif</span></span><br><br>    <span class="hljs-comment">/* TimerLists for calling timers - one per clock type.  Has its own</span><br><span class="hljs-comment">     * locking.</span><br><span class="hljs-comment">     */</span><br>    QEMUTimerListGroup tlg;<br><br>    <span class="hljs-type">int</span> external_disable_cnt;<br><br>    <span class="hljs-comment">/* Number of AioHandlers without .io_poll() */</span><br>    <span class="hljs-type">int</span> poll_disable_cnt;<br><br>    <span class="hljs-comment">/* Polling mode parameters */</span><br>    <span class="hljs-type">int64_t</span> poll_ns;        <span class="hljs-comment">/* current polling time in nanoseconds */</span><br>    <span class="hljs-type">int64_t</span> poll_max_ns;    <span class="hljs-comment">/* maximum polling time in nanoseconds */</span><br>    <span class="hljs-type">int64_t</span> poll_grow;      <span class="hljs-comment">/* polling time growth factor */</span><br>    <span class="hljs-type">int64_t</span> poll_shrink;    <span class="hljs-comment">/* polling time shrink factor */</span><br><br>    AioHandlerList poll_aio_handlers;<br><br>    <span class="hljs-comment">/* Are we in polling mode or monitoring file descriptors? */</span><br>    <span class="hljs-type">bool</span> poll_started;<br><br>    <span class="hljs-comment">/* epoll(7) state used when built with CONFIG_EPOLL */</span><br>    <span class="hljs-type">int</span> epollfd;<br><br>    <span class="hljs-type">const</span> FDMonOps *fdmon_ops;<br>&#125;;<br></code></pre></td></tr></table></figure>
+<p>这里介绍一些成员：</p>
+<ul>
+<li><code>source</code>：这里仍然使用了<code>GSource</code>来表示事件源</li>
+<li><code>aio_handlers</code>：callback function的链表</li>
+</ul>
+<p>接下来介绍基本的API：</p>
+<p>对于每一个自定义的结构体，需要实现glib循环过程中调用的几个回调函数，</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-class"><span class="hljs-keyword">struct</span> _<span class="hljs-title">GSourceFuncs</span> &#123;</span><br>    gboolean (*prepare)  (GSource    *source, gint	*timeout_);<br>  	gboolean (*check)    (GSource    *source);<br>  	gboolean (*dispatch) (GSource    *source, GSourceFunc callback, gpointer    user_data);<br>  	<span class="hljs-type">void</span>     (*finalize) (GSource    *source); <span class="hljs-comment">/* Can be NULL */</span><br><br>    <span class="hljs-comment">/* For use by g_source_set_closure */</span><br>    GSourceFunc     closure_callback;        <br>    GSourceDummyMarshal closure_marshal; <span class="hljs-comment">/* Really is of type GClosureMarshal */</span><br>&#125;;<br></code></pre></td></tr></table></figure>
+<p>对于这个结构体，qemu的实现如下：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-type">static</span> GSourceFuncs aio_source_funcs = &#123;<br>    aio_ctx_prepare,<br>    aio_ctx_check,<br>    aio_ctx_dispatch,<br>    aio_ctx_finalize<br>&#125;;<br></code></pre></td></tr></table></figure>
+<p>例如在进行<strong>dispatch</strong>的时候，<code>g_main_context_dispatch()</code>会调用<code>AioContext</code>的<code>GSource</code>中的<code>aio_source_funcs</code>对应的<code>aio_ctx_dispatch()</code>。</p>
+<p>而对于<code>AioContext</code>来说，我们并不会直接使用<code>GSource</code>来实现对事件的监听，而是使用了另一个变量<code>aio_handler</code>来保存文件描述符、处理函数。在具体dispatch的过程中，会根据事件属于IN还是OUT来使用不同的API。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">AioHandler</span> &#123;</span><br>    GPollFD pfd;<br>    IOHandler *io_read;<br>    IOHandler *io_write;<br>    AioPollFn *io_poll;<br>    IOHandler *io_poll_begin;<br>    IOHandler *io_poll_end;<br>    <span class="hljs-type">void</span> *opaque;<br>    QLIST_ENTRY(AioHandler) node;<br>    QLIST_ENTRY(AioHandler) node_ready; <span class="hljs-comment">/* only used during aio_poll() */</span><br>    QLIST_ENTRY(AioHandler) node_deleted;<br>    QLIST_ENTRY(AioHandler) node_poll;<br><span class="hljs-meta">#<span class="hljs-keyword">ifdef</span> CONFIG_LINUX_IO_URING</span><br>    QSLIST_ENTRY(AioHandler) node_submitted;<br>    <span class="hljs-type">unsigned</span> flags; <span class="hljs-comment">/* see fdmon-io_uring.c */</span><br><span class="hljs-meta">#<span class="hljs-keyword">endif</span></span><br>    <span class="hljs-type">int64_t</span> poll_idle_timeout; <span class="hljs-comment">/* when to stop userspace polling */</span><br>    <span class="hljs-type">bool</span> is_external;<br>&#125;;<br></code></pre></td></tr></table></figure>
+<h3 id="4-3-aio-poll"><a href="#4-3-aio-poll" class="headerlink" title="4.3 aio_poll()"></a>4.3 <code>aio_poll()</code></h3><p><code>aio_poll()</code>是将<code>GMainContexrt</code>中的几个阶段集成起来的方法。</p>
+<h3 id="4-4-AioContext独有的特性"><a href="#4-4-AioContext独有的特性" class="headerlink" title="4.4 AioContext独有的特性"></a>4.4 <code>AioContext</code>独有的特性</h3><ol>
+<li>Adaptive polling support for lower latency but slightly higher CPU consumption. </li>
+<li><code>O(1)</code> time complexity with respect to the number of monitored file descriptors. （with <code>Linux io_uring</code> and <code>epoll</code> APIs）</li>
+<li>Nanosecond timers</li>
+</ol>
+<h3 id="4-5-设备并行"><a href="#4-5-设备并行" class="headerlink" title="4.5 设备并行"></a>4.5 设备并行</h3><p>设备并行这方面最主要需要讨论的是qemu的事件循环是如何响应多个设备的。由于qemu有两种事件循环的实现，而他们也对应采用了不一样的底层实现，因此我们需要分开讨论。</p>
+<ol>
+<li><p><code>GMainCotext</code></p>
+<p><code>glib</code>的事件循环主要还是采用<code>poll</code>和<code>select</code>的实现，但具体就<code>poll</code>而言，则是可以自定义的：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-comment">/* HOLDS: context&#x27;s lock */</span><br><span class="hljs-type">static</span> <span class="hljs-type">void</span><br><span class="hljs-title function_">g_main_context_poll</span> <span class="hljs-params">(GMainContext *context,</span><br><span class="hljs-params">		     gint          timeout,</span><br><span class="hljs-params">		     gint          priority,</span><br><span class="hljs-params">		     GPollFD      *fds,</span><br><span class="hljs-params">		     gint          n_fds)</span><br>&#123;<br><span class="hljs-meta">#<span class="hljs-keyword">ifdef</span>  G_MAIN_POLL_DEBUG</span><br>  GTimer *poll_timer;<br>  GPollRec *pollrec;<br>  gint i;<br><span class="hljs-meta">#<span class="hljs-keyword">endif</span></span><br>  GPollFunc poll_func;<br>  <span class="hljs-keyword">if</span> (n_fds || timeout != <span class="hljs-number">0</span>)<br>    &#123;<br><span class="hljs-meta">#<span class="hljs-keyword">ifdef</span>	G_MAIN_POLL_DEBUG</span><br>      <span class="hljs-keyword">if</span> (_g_main_poll_debug)<br>	&#123;<br>	  g_print (<span class="hljs-string">&quot;polling context=%p n=%d timeout=%d\n&quot;</span>,<br>		   context, n_fds, timeout);<br>	  poll_timer = g_timer_new ();<br>	&#125;<br><span class="hljs-meta">#<span class="hljs-keyword">endif</span></span><br>      LOCK_CONTEXT (context);<br>      poll_func = context-&gt;poll_func;<br>      <br>      UNLOCK_CONTEXT (context);<br>      <span class="hljs-keyword">if</span> ((*poll_func) (fds, n_fds, timeout) &lt; <span class="hljs-number">0</span> &amp;&amp; errno != EINTR)<br>	&#123;<br><span class="hljs-meta">#<span class="hljs-keyword">ifndef</span> G_OS_WIN32</span><br>	  g_warning (<span class="hljs-string">&quot;poll(2) failed due to: %s.&quot;</span>,<br>		     g_strerror (errno));<br><span class="hljs-meta">#<span class="hljs-keyword">else</span></span><br>	  <span class="hljs-comment">/* If g_poll () returns -1, it has already called g_warning() */</span><br><span class="hljs-meta">#<span class="hljs-keyword">endif</span></span><br>	&#125;<br>      <br><span class="hljs-meta">#<span class="hljs-keyword">ifdef</span>	G_MAIN_POLL_DEBUG</span><br>      <span class="hljs-keyword">if</span> (_g_main_poll_debug)<br>	&#123;<br>	  LOCK_CONTEXT (context);<br>	  g_print (<span class="hljs-string">&quot;g_main_poll(%d) timeout: %d - elapsed %12.10f seconds&quot;</span>,<br>		   n_fds,<br>		   timeout,<br>		   g_timer_elapsed (poll_timer, <span class="hljs-literal">NULL</span>));<br>	  g_timer_destroy (poll_timer);<br>	  pollrec = context-&gt;poll_records;<br>	  <span class="hljs-keyword">while</span> (pollrec != <span class="hljs-literal">NULL</span>)<br>	    &#123;<br>	      i = <span class="hljs-number">0</span>;<br>	      <span class="hljs-keyword">while</span> (i &lt; n_fds)<br>		&#123;<br>		  <span class="hljs-keyword">if</span> (fds[i].fd == pollrec-&gt;fd-&gt;fd &amp;&amp;<br>		      pollrec-&gt;fd-&gt;events &amp;&amp;<br>		      fds[i].revents)<br>		    &#123;<br>		      g_print (<span class="hljs-string">&quot; [&quot;</span> G_POLLFD_FORMAT <span class="hljs-string">&quot; :&quot;</span>, fds[i].fd);<br>		      <span class="hljs-keyword">if</span> (fds[i].revents &amp; G_IO_IN)<br>			g_print (<span class="hljs-string">&quot;i&quot;</span>);<br>		      <span class="hljs-keyword">if</span> (fds[i].revents &amp; G_IO_OUT)<br>			g_print (<span class="hljs-string">&quot;o&quot;</span>);<br>		      <span class="hljs-keyword">if</span> (fds[i].revents &amp; G_IO_PRI)<br>			g_print (<span class="hljs-string">&quot;p&quot;</span>);<br>		      <span class="hljs-keyword">if</span> (fds[i].revents &amp; G_IO_ERR)<br>			g_print (<span class="hljs-string">&quot;e&quot;</span>);<br>		      <span class="hljs-keyword">if</span> (fds[i].revents &amp; G_IO_HUP)<br>			g_print (<span class="hljs-string">&quot;h&quot;</span>);<br>		      <span class="hljs-keyword">if</span> (fds[i].revents &amp; G_IO_NVAL)<br>			g_print (<span class="hljs-string">&quot;n&quot;</span>);<br>		      g_print (<span class="hljs-string">&quot;]&quot;</span>);<br>		    &#125;<br>		  i++;<br>		&#125;<br>	      pollrec = pollrec-&gt;next;<br>	    &#125;<br>	  g_print (<span class="hljs-string">&quot;\n&quot;</span>);<br>	  UNLOCK_CONTEXT (context);<br>	&#125;<br><span class="hljs-meta">#<span class="hljs-keyword">endif</span></span><br>    &#125; <span class="hljs-comment">/* if (n_fds || timeout != 0) */</span><br>&#125;<br></code></pre></td></tr></table></figure>
+<p>从<code>g_main_context_poll</code>中可以看到，这个函数取出了事件源的<code>GPollFunc</code>，然后进行了调用，这个函数是在初始化的时候就挂载的。初始化（即new一个事件源时），默认将其设置为<code>g_poll</code>，这里我们就先拿默认的<code>g_poll</code>来分析：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br></pre></td><td class="code"><pre><code class="hljs c">gint<br><span class="hljs-title function_">g_poll</span><span class="hljs-params">(GPollFD *fds, guint nfds, gint timeout)</span><br>&#123;<br>    <span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">timeval</span> <span class="hljs-title">tv</span>;</span><br>    SELECT_MASK rset, wset, xset;<br>    GPollFD *f;<br>    <span class="hljs-type">int</span> ready;<br>    <span class="hljs-type">int</span> maxfd = <span class="hljs-number">0</span>;<br><br>    FD_ZERO(&amp;rset);<br>    FD_ZERO(&amp;wset);<br>    FD_ZERO(&amp;xset);<br><br>    <span class="hljs-keyword">for</span> (f = fds; f &lt; &amp;fds[nfds]; ++f) &#123;<br>        <span class="hljs-keyword">if</span> (f-&gt;fd &gt;= <span class="hljs-number">0</span>) &#123;<br>            <span class="hljs-keyword">if</span> (f-&gt;events &amp; G_IO_IN)<br>                FD_SET(f-&gt;fd, &amp;rset);<br>            <span class="hljs-keyword">if</span> (f-&gt;events &amp; G_IO_OUT)<br>                FD_SET(f-&gt;fd, &amp;wset);<br>            <span class="hljs-keyword">if</span> (f-&gt;events &amp; G_IO_PRI)<br>                FD_SET(f-&gt;fd, &amp;xset);<br>            <span class="hljs-keyword">if</span> (f-&gt;fd &gt; maxfd &amp;&amp; (f-&gt;events &amp; (G_IO_IN | G_IO_OUT | G_IO_PRI)))<br>                maxfd = f-&gt;fd;<br>        &#125;<br>    &#125;<br><br>    tv.tv_sec = timeout / <span class="hljs-number">1000</span>;<br>    tv.tv_usec = (timeout % <span class="hljs-number">1000</span>) * <span class="hljs-number">1000</span>;<br><br>    ready = select(maxfd + <span class="hljs-number">1</span>, &amp;rset, &amp;wset, &amp;xset,<br>                   timeout == <span class="hljs-number">-1</span> ? <span class="hljs-literal">NULL</span> : &amp;tv);<br>    <span class="hljs-keyword">if</span> (ready &gt; <span class="hljs-number">0</span>)<br>        <span class="hljs-keyword">for</span> (f = fds; f &lt; &amp;fds[nfds]; ++f) &#123;<br>            f-&gt;revents = <span class="hljs-number">0</span>;<br>            <span class="hljs-keyword">if</span> (f-&gt;fd &gt;= <span class="hljs-number">0</span>) &#123;<br>                <span class="hljs-keyword">if</span> (FD_ISSET(f-&gt;fd, &amp;rset))<br>                    f-&gt;revents |= G_IO_IN;<br>                <span class="hljs-keyword">if</span> (FD_ISSET(f-&gt;fd, &amp;wset))<br>                    f-&gt;revents |= G_IO_OUT;<br>                <span class="hljs-keyword">if</span> (FD_ISSET(f-&gt;fd, &amp;xset))<br>                    f-&gt;revents |= G_IO_PRI;<br>            &#125;<br>        &#125;<br><br>    <span class="hljs-keyword">return</span> ready;<br>&#125;<br></code></pre></td></tr></table></figure>
+<p>可以看到poll主要是两个部分，第一个部分是监听时的处理：对所有文件描述符进行一次遍历，将其分类放入不同的集合当中。然后对这些集合调用<code>select</code>，返回的<code>ready</code>有三种情况，如果是-1，说明有错误产生；如果是0，说明超出等待时间（time limit expires）；如果大于0，则是返回已经ready的文件描述符的数量。因此，<code>select</code>返回后，对<code>ready</code>大于0的情况进行处理：对所有文件描述符进行一次遍历，如果对应的文件描述符ready（FD_ISSET宏来处理这个判断），则将<code>GPollFD</code>中对应的文件描述符的结构体中的<code>revent</code>标记。<code>dispatch</code>时就借用这个成员变量进行判断。</p>
+<p>其中这个<code>GPollFD</code>实际就是<code>pollfd</code>的一个alias：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">pollfd</span> &#123;</span><br>    <span class="hljs-type">int</span>    fd;       <span class="hljs-comment">/* file descriptor */</span><br>    <span class="hljs-type">short</span>  events;   <span class="hljs-comment">/* events to look for */</span><br>    <span class="hljs-type">short</span>  revents;  <span class="hljs-comment">/* events returned */</span><br>&#125;;<br></code></pre></td></tr></table></figure>
+<p>以上是使用<code>select</code>时的处理，qemu中的<code>g_poll</code>显得更加简洁：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-type">int</span> <span class="hljs-title function_">qemu_poll_ns</span><span class="hljs-params">(GPollFD *fds, guint nfds, <span class="hljs-type">int64_t</span> timeout)</span><br>&#123;<br><span class="hljs-meta">#<span class="hljs-keyword">ifdef</span> CONFIG_PPOLL</span><br>    <span class="hljs-keyword">if</span> (timeout &lt; <span class="hljs-number">0</span>) &#123;<br>        <span class="hljs-keyword">return</span> ppoll((<span class="hljs-keyword">struct</span> pollfd *)fds, nfds, <span class="hljs-literal">NULL</span>, <span class="hljs-literal">NULL</span>);<br>    &#125; <span class="hljs-keyword">else</span> &#123;<br>        <span class="hljs-keyword">struct</span> timespec ts;<br>        <span class="hljs-type">int64_t</span> tvsec = timeout / <span class="hljs-number">1000000000LL</span>;<br>        <span class="hljs-comment">/* Avoid possibly overflowing and specifying a negative number of</span><br><span class="hljs-comment">         * seconds, which would turn a very long timeout into a busy-wait.</span><br><span class="hljs-comment">         */</span><br>        <span class="hljs-keyword">if</span> (tvsec &gt; (<span class="hljs-type">int64_t</span>)INT32_MAX) &#123;<br>            tvsec = INT32_MAX;<br>        &#125;<br>        ts.tv_sec = tvsec;<br>        ts.tv_nsec = timeout % <span class="hljs-number">1000000000LL</span>;<br>        <span class="hljs-keyword">return</span> ppoll((<span class="hljs-keyword">struct</span> pollfd *)fds, nfds, &amp;ts, <span class="hljs-literal">NULL</span>);<br>    &#125;<br><span class="hljs-meta">#<span class="hljs-keyword">else</span></span><br>    <span class="hljs-keyword">return</span> g_poll(fds, nfds, qemu_timeout_ns_to_ms(timeout));<br><span class="hljs-meta">#<span class="hljs-keyword">endif</span></span><br>&#125;<br><br><span class="hljs-type">int</span> <span class="hljs-title function_">g_poll</span> <span class="hljs-params">(GPollFD *fds, <span class="hljs-type">unsigned</span> nfds, <span class="hljs-type">int</span> timeout)</span><br>&#123;<br>    <span class="hljs-keyword">return</span> poll(fds, nfds, timeout);<br>&#125;<br></code></pre></td></tr></table></figure>
+<p>如果可以使用<code>ppoll</code>，则使用<code>ppoll</code>，否则使用下方的<code>g_poll</code>(比如MacOS/BSD没有<code>ppoll</code>只有<code>poll</code>)。这里的<code>qemu_poll_ns</code>没有像上方使用<code>select</code>时那么复杂，没有手动对这些文件描述符进行分类和处理，这与两者系统调用的接口不同有关。<code>poll</code>的设计更加简洁，将这些内容全部集成了。</p>
+<p>完成了<code>poll</code>的过程后，qemu会继续使用<code>g_main_context_check</code>和<code>g_main_context_dispatch</code>来处理事件的响应。</p>
+<p><code>g_main_context_check</code>对事件进行了一次遍历，对<code>context-&gt;pending_dispatches</code>进行填充。</p>
+<p><code>g_main_context_dispatch</code>对<code>pending_dispatches-&gt;pdata</code>进行遍历，分别找到这个文件描述符对应的事件源，然后调用事件源的回调函数进行处理。可以看到，这个过程是完全线性的，也就是说，多时间同时发生时，也需要用这样的办法进行串行的响应。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br></pre></td><td class="code"><pre><code class="hljs C"><span class="hljs-type">static</span> <span class="hljs-type">void</span><br><span class="hljs-title function_">g_main_dispatch</span><span class="hljs-params">(GMainContext *context)</span><br>&#123;<br>    GMainDispatch *current = get_dispatch();<br>    guint i;<br>    <span class="hljs-keyword">for</span> (i = <span class="hljs-number">0</span>; i &lt; context-&gt;pending_dispatches-&gt;len; i++) &#123;<br>        GSource *source = context-&gt;pending_dispatches-&gt;pdata[i];<br>        context-&gt;pending_dispatches-&gt;pdata[i] = <span class="hljs-literal">NULL</span>;<br>        g_assert(source);<br>        source-&gt;flags &amp;= ~G_SOURCE_READY;<br>        <span class="hljs-keyword">if</span> (!SOURCE_DESTROYED(source)) &#123;<br>            gboolean was_in_call;<br>            gpointer user_data = <span class="hljs-literal">NULL</span>;<br>            GSourceFunc callback = <span class="hljs-literal">NULL</span>;<br>            GSourceCallbackFuncs *cb_funcs;<br>            gpointer cb_data;<br>            gboolean need_destroy;<br>            gboolean(*dispatch)(GSource * ,<br>                                GSourceFunc,<br>                                gpointer);<br>            GSList current_source_link;<br>            dispatch = source-&gt;source_funcs-&gt;dispatch;<br>            cb_funcs = source-&gt;callback_funcs;<br>            cb_data = source-&gt;callback_data;<br>            <span class="hljs-keyword">if</span> (cb_funcs)<br>                cb_funcs-&gt;ref(cb_data);<br><br>            <span class="hljs-keyword">if</span> ((source-&gt;flags &amp; G_SOURCE_CAN_RECURSE) == <span class="hljs-number">0</span>)<br>                block_source(source);<br><br>            was_in_call = source-&gt;flags &amp; G_HOOK_FLAG_IN_CALL;<br>            source-&gt;flags |= G_HOOK_FLAG_IN_CALL;<br>            <span class="hljs-keyword">if</span> (cb_funcs)<br>                cb_funcs-&gt;get(cb_data, source, &amp;callback, &amp;user_data);<br>            UNLOCK_CONTEXT(context);<br>            current-&gt;depth++;<br>            <span class="hljs-comment">/* The on-stack allocation of the GSList is unconventional, but</span><br><span class="hljs-comment">             * we know that the lifetime of the link is bounded to this</span><br><span class="hljs-comment">             * function as the link is kept in a thread specific list and</span><br><span class="hljs-comment">             * not manipulated outside of this function and its descendants.</span><br><span class="hljs-comment">             * Avoiding the overhead of a g_slist_alloc() is useful as many</span><br><span class="hljs-comment">             * applications do little more than dispatch events.</span><br><span class="hljs-comment">             *</span><br><span class="hljs-comment">             * This is a performance hack - do not revert to g_slist_prepend()!</span><br><span class="hljs-comment">             */</span><br>            current_source_link.data = source;<br>            current_source_link.next = current-&gt;dispatching_sources;<br>            current-&gt;dispatching_sources = &amp;current_source_link;<br>            need_destroy = !dispatch(source,<br>                                     callback,<br>                                     user_data);<br>            g_assert(current-&gt;dispatching_sources == &amp;current_source_link);<br>            current-&gt;dispatching_sources = current_source_link.next;<br>            current-&gt;depth--;<br><br>            <span class="hljs-keyword">if</span> (cb_funcs)<br>                cb_funcs-&gt;unref(cb_data);<br>            LOCK_CONTEXT(context);<br><br>            <span class="hljs-keyword">if</span> (!was_in_call)<br>                source-&gt;flags &amp;= ~G_HOOK_FLAG_IN_CALL;<br>            <span class="hljs-keyword">if</span> ((source-&gt;flags &amp; G_SOURCE_CAN_RECURSE) == <span class="hljs-number">0</span> &amp;&amp;<br>                !SOURCE_DESTROYED(source))<br>                unblock_source(source);<br><br>            <span class="hljs-comment">/* Note: this depends on the fact that we can&#x27;t switch</span><br><span class="hljs-comment">             * sources from one main context to another</span><br><span class="hljs-comment">             */</span><br>            <span class="hljs-keyword">if</span> (need_destroy &amp;&amp; !SOURCE_DESTROYED(source)) &#123;<br>                g_assert(source-&gt;context == context);<br>                g_source_destroy_internal(source, context, TRUE);<br>            &#125;<br>        &#125;<br><br>        SOURCE_UNREF(source, context);<br>    &#125;<br>    g_ptr_array_set_size(context-&gt;pending_dispatches, <span class="hljs-number">0</span>);<br>&#125;<br></code></pre></td></tr></table></figure>
+</li>
+<li><p><code>AioContext</code></p>
+<p>前面说到<code>AioContext</code>有几个卓越的特性，其中一个就是<code>O(1)</code>的时间复杂度，这个时间复杂度是指<code>poll</code>的时候借助 <code>Linux io_uring</code> and <code>epoll</code> APIs实现的（具体原因，不懂，待查）</p>
+<p>但是在dispatch的阶段，仍然是使用一个循环来逐个处理事件，在这里使用的是<code>handler</code>，基本流程与<code>GMainContext</code>类似：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-keyword">while</span> ((node = QLIST_FIRST(ready_list))) &#123;<br>        QLIST_REMOVE(node, node_ready);<br>        progress = aio_dispatch_handler(ctx, node) || progress;<br>&#125;<br></code></pre></td></tr></table></figure>
+</li>
+</ol>
+<p>总结来说，两者在<code>poll</code>阶段使用了不同的API，但其基本内容是相似的，<code>AioContext</code>的优化很多情况下是基于对ready事件的检查判断之类的地方，而实质上处理事件时两者都是采用了一个循环来处理，而非设计一个新线程来响应。</p>
+<h3 id="4-6-硬盘启动fd的检验"><a href="#4-6-硬盘启动fd的检验" class="headerlink" title="4.6 硬盘启动fd的检验"></a>4.6 硬盘启动fd的检验</h3><p>用如下命令启动qemu，将其产生的文件描述符进行处理后存入<code>a.log</code>，再启动一个纯裸机（只有<code>-machine</code>选项），将文件描述符存入<code>b.log</code>。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><code class="hljs bash"><span class="hljs-meta">#!/bin/bash</span><br><br>gdb --args \<br>        /home/mrzleo/Desktop/qemu/aarch64-softmmu/qemu-system-aarch64 \<br>        -machine virt \<br>        -cpu cortex-a57 \<br>        -m 2048M \<br>        -kernel /home/mrzleo/Desktop/linux-5.11.11/arch/arm64/boot/Image \<br>        -initrd /home/mrzleo/Desktop/rootfs.cpio.gz \<br></code></pre></td></tr></table></figure>
+<p>处理脚本：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs bash"><span class="hljs-meta">#!/bin/bash</span><br>a=$(ps -e | grep <span class="hljs-string">&quot;qemu-system-aar&quot;</span> | awk <span class="hljs-string">&#x27;&#123;print $1&#125;&#x27;</span>)<br><span class="hljs-built_in">ls</span> -l --color /proc/<span class="hljs-variable">$a</span>/fd<br></code></pre></td></tr></table></figure>
+<p>两者进行<code>diff</code>可以得到如下结果：</p>
+<p><img src="https://i.loli.net/2021/07/21/NhmBq8tKp4LWQx6.png" srcset="/img/loading.gif" lazyload alt="image-20210721110313986"></p>
+<p>可以发现启动硬盘的qemu多打开了三个文件描述符22、23、24。显然这三个文件描述符是对应硬盘设备的。</p>
+<p>但是，增加其他的设备（例如edu、e1000网卡）在当前情况下都不会产生新的文件描述符。</p>
+<p>如果直接挂载一个硬盘</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs bash">-hda ./image.raw<br></code></pre></td></tr></table></figure>
+<p>我们也可以看到qemu打开了一个文件描述符表示这个硬盘：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs bash">lrwx------ 1 mrzleo mrzleo 64 Jul 21 12:00 17 -&gt; /home/mrzleo/Desktop/image.raw<br></code></pre></td></tr></table></figure>
+<h3 id="4-7-ioeventfd"><a href="#4-7-ioeventfd" class="headerlink" title="4.7 ioeventfd"></a>4.7 ioeventfd</h3><p>一般情况下，一个完整的IO过程包括从虚拟机内部返回到KVM，再到qemu，并由qemu最终进行分发这样一个同步过程，IO完成之后的返回路径与此相反。但这样的流程会有较大的效率瓶颈，并且有时候IO请求本身只是作为一个通知事件，通知KVM或qemu完成另一个具体的IO。在这种情况下，为了优化性能，qemu采用了ioeventfd的方案来处理IO。ioeventfd基于eventfd，在初始化的时候qemu将一段IO地址空间和一个eventfd相对应起来，当虚拟机写I/O地址的时候，陷入KVM，KVM直接设置该IO地址对应的fd，qemu从其事件循环返回，执行相应的处理函数。这样就绕过了qemu的IO分发过程，提高了效率。</p>
+<p>前面提到，Linux使用<code>select/poll/epoll</code>的系统调用可以监听一个文件描述符fd，当fd的状态发生变化的时候，会调用相应的事件处理函数对其进行响应。但是，有时候我们可能只需要发送一个非常简短的事件通知，没有对应的具体实体，这个时候就可以直接使用eventfd。</p>
+<p>qemu通过<code>EventNotifier</code>结构体的方式注册一个ioeventfd，对应使用<code>event_notifier_init</code>来创建。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-type">int</span> <span class="hljs-title function_">event_notifier_init</span><span class="hljs-params">(EventNotifier *e, <span class="hljs-type">int</span> active)</span><br>&#123;<br>    <span class="hljs-type">int</span> fds[<span class="hljs-number">2</span>];<br>    <span class="hljs-type">int</span> ret;<br><br><span class="hljs-meta">#<span class="hljs-keyword">ifdef</span> CONFIG_EVENTFD</span><br>    ret = eventfd(<span class="hljs-number">0</span>, EFD_NONBLOCK | EFD_CLOEXEC); <span class="hljs-comment">/* 调用eventfd */</span><br><span class="hljs-meta">#<span class="hljs-keyword">else</span></span><br>    ret = <span class="hljs-number">-1</span>;<br>    errno = ENOSYS;<br><span class="hljs-meta">#<span class="hljs-keyword">endif</span></span><br>    <span class="hljs-keyword">if</span> (ret &gt;= <span class="hljs-number">0</span>) &#123;<br>        e-&gt;rfd = e-&gt;wfd = ret;<br>    &#125; <span class="hljs-keyword">else</span> &#123;<br>        <span class="hljs-keyword">if</span> (errno != ENOSYS) &#123;<br>            <span class="hljs-keyword">return</span> -errno;<br>        &#125;<br>        <span class="hljs-keyword">if</span> (qemu_pipe(fds) &lt; <span class="hljs-number">0</span>) &#123;	<span class="hljs-comment">/* 创建一个pipe */</span><br>            <span class="hljs-keyword">return</span> -errno;<br>        &#125;<br>        ret = fcntl_setfl(fds[<span class="hljs-number">0</span>], O_NONBLOCK);<br>        <span class="hljs-keyword">if</span> (ret &lt; <span class="hljs-number">0</span>) &#123;<br>            ret = -errno;<br>            <span class="hljs-keyword">goto</span> fail;<br>        &#125;<br>        ret = fcntl_setfl(fds[<span class="hljs-number">1</span>], O_NONBLOCK);<br>        <span class="hljs-keyword">if</span> (ret &lt; <span class="hljs-number">0</span>) &#123;<br>            ret = -errno;<br>            <span class="hljs-keyword">goto</span> fail;<br>        &#125;<br>        e-&gt;rfd = fds[<span class="hljs-number">0</span>];<br>        e-&gt;wfd = fds[<span class="hljs-number">1</span>];<br>    &#125;<br>    <span class="hljs-keyword">if</span> (active) &#123;<br>        event_notifier_set(e);<br>    &#125;<br>    <span class="hljs-keyword">return</span> <span class="hljs-number">0</span>;<br><br>fail:<br>    close(fds[<span class="hljs-number">0</span>]);<br>    close(fds[<span class="hljs-number">1</span>]);<br>    <span class="hljs-keyword">return</span> ret;<br>&#125;<br></code></pre></td></tr></table></figure>
+<p>如果可以使用<code>eventfd</code>，则直接使用；否则创建一个pipe，<code>wfd</code>用于读，rfd用于写。</p>
+<p>如果qemu将eventfd关联到一个事件源，并且将eventfd加入到qemu的主循环中监听，那么此时qemu的poll也会返回，用来处理这个事件。</p>
+<h2 id="5-在qemu中测试"><a href="#5-在qemu中测试" class="headerlink" title="5. 在qemu中测试"></a>5. 在qemu中测试</h2><p>本节将从整体的IO流程出发，详细讲解并用实际程序验证IO事件从Guest中触发到qemu处理最终在实际物理设备中执行的全过程。</p>
+<h3 id="5-1-测试用例"><a href="#5-1-测试用例" class="headerlink" title="5.1 测试用例"></a>5.1 测试用例</h3><p>我们的测试程序为<code>qemu5.2.0</code>，测试使用的参数如下：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><code class="hljs bash"><span class="hljs-comment"># qemu_gdb.sh</span><br><br><span class="hljs-comment">#!/bin/bash</span><br>sudo gdb --args \<br>	qemu-system-x86_64 \<br>	-m 8G \<br>	-accel kvm \<br>	-drive file=ubuntu.img,format=raw,<span class="hljs-keyword">if</span>=virtio,cache=none,aio=native<br></code></pre></td></tr></table></figure>
+<p>对应使用的Guest OS为<code>Linux Ubuntu 21.04</code>，已经将镜像预先安装在了虚拟磁盘<code>ubuntu.img</code>中。由于raw格式的文件处理逻辑较为简单，因此我们拿raw格式的磁盘作为演示。</p>
+<p>我们将要测试的设备是类型为<code>virtio-blk</code>的磁盘设备。</p>
+<p>此外，为了更便于对fd进行测试和观察，这里使用了一个小脚本：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs bash"><span class="hljs-comment"># fd.sh</span><br><br>a=$(ps -e | grep <span class="hljs-string">&quot;qemu-system-x86&quot;</span> | awk <span class="hljs-string">&#x27;&#123;print $1&#125;&#x27;</span>)<br>sudo <span class="hljs-built_in">ls</span> -l --color /proc/<span class="hljs-variable">$a</span>/fd<br></code></pre></td></tr></table></figure>
+<p>这个脚本能够将qemu对应的fd打印出来。</p>
+<h3 id="5-2-virtio设备的结构"><a href="#5-2-virtio设备的结构" class="headerlink" title="5.2 virtio设备的结构"></a>5.2 virtio设备的结构</h3><p>首先我们讨论qemu中的virtio的设备结构。</p>
+<p>CPU拥有自己的虚拟地址空间，这个空间中包含内存和各种设备。PCI设备是属于这个空间中的，但是virtio设备却没有直接包含在这个地址空间中，取而代之的是一个被称作virtio代理设备的设备挂载在PCI总线中。也就是说，virtio-blk设备是没有MemoryRegion的，而virtio代理设备则拥有自己的MemoryRegion。Guest 触发IO事件的时候，对应的地址就是virtio代理设备的地址，对应的MemoryRegion就是virtio代理设备的MemoryRegion。在代理设备中会通过virtio总线将访问分发到具体的设备。</p>
+<h3 id="5-3-I-O的基本流程"><a href="#5-3-I-O的基本流程" class="headerlink" title="5.3 I/O的基本流程"></a>5.3 I/O的基本流程</h3><p>接下来我们详细讲解IO的基本流程。</p>
+<p>IO事件从Guest中分发下来之后访问对应的MemoryRegion，这个过程会判断这个MemoryRegion是否绑定着某个eventfd。具体来说，在使用tcg作为accelerator时会在IO 分发的过程中进入某段修改eventfd的逻辑；在使用kvm时，kvm负责做这个判断和修改。这个过程就是下图中signify的过程。eventfd被写入信息之后，状态发生变化，这个变化会被Host OS捕捉到，具体来说就是epoll之类的系统调用接收到信号，从系统调用中返回。</p>
+<p>epoll返回之后即对应着MainLoop的执行逻辑，返回后就是事件循环的dispatch流程。dispatch会访问AioContext中fd变化的AioHandler，调用AioHandler中的io函数（根据事件类型的不同访问不同的函数）。这个过程就会访问到eventfd绑定好的回调函数，这个回调函数就是对应的virtio读写函数。</p>
+<p>接下来会进入一段复杂的协程逻辑，协程中根据eventfd获取到需要的结构体，调用系统调用，提交对物理设备的IO请求，这个过程就会对真正的设备fd进行操作。</p>
+<p><img src="https://i.loli.net/2021/08/17/1QXkhIHLnDKUtgl.png" srcset="/img/loading.gif" lazyload alt="event2fd"></p>
+<h3 id="5-4-测试"><a href="#5-4-测试" class="headerlink" title="5.4 测试"></a>5.4 测试</h3><p>最后我们来用实际的程序测试这一个过程，验证的过程会采取fd–&gt;eventfd的路线进行探索。</p>
+<h4 id="5-4-1-磁盘文件存储的结构体"><a href="#5-4-1-磁盘文件存储的结构体" class="headerlink" title="5.4.1 磁盘文件存储的结构体"></a>5.4.1 磁盘文件存储的结构体</h4><p>磁盘文件保存主要是分为两个，第一个是BlockDriverState</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">BlockDriverState</span> &#123;</span><br>	...<br>    <span class="hljs-type">void</span> *opaque;<br><br>    AioContext *aio_context;<br>    ...<br>&#125;;<br></code></pre></td></tr></table></figure>
+<p>这相当于一个磁盘驱动程序。BlockDriverState中的opaque是一个void类型的指针，之所以这样设计，是因为底层的磁盘的类型多种多样，因此我们不能确定究竟使用的是哪一种磁盘设备，因此这里使用了void指针来实现磁盘设备的一般化。</p>
+<p>我们在测试中使用的磁盘类型是raw，这个磁盘类型对应的结构体是：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-keyword">typedef</span> <span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">BDRVRawState</span> &#123;</span><br>    <span class="hljs-type">int</span> fd;<br>    ...<br>&#125; BDRVRawState;<br></code></pre></td></tr></table></figure>
+<p>显然，这个磁盘类型的结构体中就保存着打开的fd，这个fd必然对应着我们Host中的磁盘文件。</p>
+<h4 id="5-4-2-磁盘文件的打开"><a href="#5-4-2-磁盘文件的打开" class="headerlink" title="5.4.2 磁盘文件的打开"></a>5.4.2 磁盘文件的打开</h4><p>最终qemu使用<code>raw_open_common</code>打开raw格式的文件。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-type">static</span> <span class="hljs-type">int</span> <span class="hljs-title function_">raw_open_common</span><span class="hljs-params">(BlockDriverState *bs,...)</span> &#123;    <br>	BDRVRawState *s = bs-&gt;opaque;    <br>	...    <br>	fd = qemu_open(...);    <br>	s-&gt;fd = fd;    <br>	...<br>&#125;<br></code></pre></td></tr></table></figure>
+<p>我们在这个函数上打断点，并且watch对应的fd，查看fd。</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs shell">(gdb) b raw_open_common<br>(gdb) watch s-&gt;fd<br></code></pre></td></tr></table></figure>
+<p>观察到</p>
+<p><img src="https://i.loli.net/2021/08/17/cXGHkTCgzfL1bli.png" srcset="/img/loading.gif" lazyload alt="w_fd"></p>
+<p>对应地，fd=10是我们打开的磁盘文件。</p>
+<p><img src="https://i.loli.net/2021/08/17/OWrV9DPbsmT6Kj3.png" srcset="/img/loading.gif" lazyload alt="fd10"></p>
+<p>值得一提的是，raw的文件在qemu中的逻辑中，需要一次reopen，所以如果我们直接watch s-&gt;fd对应的地址空间，还可以看到fd最终变化成15。</p>
+<p><img src="https://i.loli.net/2021/08/17/QlfxKTgwyhcivWU.png" srcset="/img/loading.gif" lazyload alt="fd15"></p>
+<h4 id="5-4-3-磁盘读写的回调函数"><a href="#5-4-3-磁盘读写的回调函数" class="headerlink" title="5.4.3 磁盘读写的回调函数"></a>5.4.3 磁盘读写的回调函数</h4><p>qemu的事件循环监听到eventfd的变化之后会返回进入dispatch的阶段。使用AioContext的dispatch通过<code>aio_dispatch_handler</code>完成，根据事件的类型选择不同的回调函数：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-type">static</span> <span class="hljs-type">bool</span> <span class="hljs-title function_">aio_dispatch_handler</span><span class="hljs-params">(AioContext *ctx, AioHandler *node)</span><br>&#123;<br>	...<br>	<span class="hljs-keyword">if</span>(... &amp;&amp; node-&gt;io_read)<br>		node-&gt;io_read(node-&gt;opaque);<br><br>	<span class="hljs-keyword">if</span>(... &amp;&amp; node-&gt;io_write)<br>		node-&gt;io_write(node-&gt;opaque);<br>	...<br>&#125;<br></code></pre></td></tr></table></figure>
+<p>我们测试过程中使用的是virtio-blk设备，这里的回调函数是<code>virtio_queue_host_notifier_aio_read(EventNotifier node-&gt;opaque)</code></p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-type">static</span> <span class="hljs-type">void</span> <span class="hljs-title function_">virtio_queue_host_notifier_aio_read</span><span class="hljs-params">(EventNotifier *n)</span><br>&#123;<br>    VirtQueue *vq = container_of(n, VirtQueue, host_notifier);<br>    <span class="hljs-keyword">if</span> (event_notifier_test_and_clear(n)) &#123;<br>        virtio_queue_notify_aio_vq(vq);<br>    &#125;<br>&#125;<br></code></pre></td></tr></table></figure>
+<p>这里将eventfd(EventNotifier)和fd联系起来的<strong>核心是<code>container_of()</code>宏</strong> ，这个宏从<code>EventNotifier</code>获取到<code>VirtQueue</code>，而<code>VirtQueue</code>中就保存着Virtio设备相关的数据，其中就包括打开的磁盘文件的<code>fd</code>。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">VirtQueue</span></span><br><span class="hljs-class">&#123;</span><br>	...<br>	VirtIODevice *vdev;<br>    EventNotifier guest_notifier;<br>    EventNotifier host_notifier;<br>	...<br>&#125;<br></code></pre></td></tr></table></figure>
+<p>接下来调用vq的回调函数，利用协程的方式完成IO请求的提交</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs c">virtio_queue_notify_aio_vq(VirtQueue *vq) --&gt; vq-&gt;handle_aio_output(vdev, vq);<br>	virtio_blk_data_plane_handle_output(VirtIODevice *vdev, VirtQueue *vq)<br>		VirtIOBlock *s = (VirtIOBlock *)vdev;<br>		virtio_blk_handle_vq(VirtIOBlock *s, VirtQueue *vq)<br>			virtio_blk_submit_multireq(s-&gt;blk, &amp;mrb);<br>				submit_requests<br></code></pre></td></tr></table></figure>
+<p><code>submit_requests()</code>中判断是读还是写操作，然后启动相应的读/写协程。以读操作为例由<code>blk_aio_preadv()</code>调用<code>qemu_coroutine_create(CoroutineEntry *entry, void *opaque)</code>启动协程。</p>
+<p><code>blk_aio_preadv()</code>中会将需要的参数打包成<code>BlkAioEmAIOCB *acb</code>结构体作为<code>qemu_coroutine_create()</code>的第二个参数，而第一个参数entry是<code>blk_aio_read_entry</code>函数指针。</p>
+<p>所以最终协程启动为：<code>entry(opaque)</code>即<code>blk_aio_read_entry(acb)</code>。</p>
+<p>再分析协程的调用栈，即可解读出设备(VirtIOBlock)到具体fd的过程：</p>
+<p><img src="https://i.loli.net/2021/08/17/Bi5hOQwLFE6Y9bI.png" srcset="/img/loading.gif" lazyload alt="fd_open"></p>
+<p>其中fd是由BlockDriverState获取到的BDRVRawState得到的，而其中的转换关系相对来说是比较复杂的。具体来说就是协程之前的VirtQueue得到的VirtIODevice结构体中包含的信息进行的一系列转化：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs c">VirtQueue --&gt; VirtIODevice --&gt; VirtIOBlock --&gt; BlockBackend --&gt; BdrvChild <br>    															--&gt; BlockDriverState --&gt; BDRVRawState --&gt; fd<br></code></pre></td></tr></table></figure>
+<h4 id="5-4-4-回调函数与eventfd的绑定"><a href="#5-4-4-回调函数与eventfd的绑定" class="headerlink" title="5.4.4 回调函数与eventfd的绑定"></a>5.4.4 回调函数与eventfd的绑定</h4><p>最后，我们需要找到eventfd是如何与这个回调函数联系起来的，这样就可以形成完整的逻辑闭环了，从而证明了eventfd与具体设备fd的对应关系。</p>
+<p>证明两者之间的联系最简单的方法就是在注册时，查找回调函数所注册的eventfd。在qemu（linux为Host OS）中，使用的注册函数是<code>aio_set_fd_handler</code>。在此之前我们需要简单提及AioContext的结构。前文提到AioContext的基本成员时，提到过AioHandler。而这个AioHandler正是dispatch时eventfd与回调函数对应的结构体：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">AioHandler</span> &#123;</span><br>    GPollFD pfd;<br>    IOHandler *io_read;<br>    IOHandler *io_write;<br>    AioPollFn *io_poll;<br>    IOHandler *io_poll_begin;<br>    IOHandler *io_poll_end;<br>    <span class="hljs-type">void</span> *opaque;<br>  	...<br>&#125;<br></code></pre></td></tr></table></figure>
+<p>GPollFD结构体时glib的数据结构，里面保存了一个fd和表示事件类型的变量：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">GPollFD</span> &#123;</span><br>    <span class="hljs-type">int</span> fd;<br>    ushort events;<br>    ushort revents;<br>&#125;<br></code></pre></td></tr></table></figure>
+<p>启动qemu，在<code>aio_set_fd_handler</code>上打断点，查看<code>io_read</code>和fd的值：</p>
+<p><img src="https://i.loli.net/2021/08/17/TovsqMGVH8D2xBd.png" srcset="/img/loading.gif" lazyload alt="111"></p>
+<p>可以看到这个回调函数的确与一个eventfd相对应了，这个eventfd的值为10。</p>
+<h4 id="5-4-5-总结"><a href="#5-4-5-总结" class="headerlink" title="5.4.5 总结"></a>5.4.5 总结</h4><p>至此，我们就成功验证了fd —&gt; callback function 和 callback function —&gt; eventfd，借助中间的回调函数，我们发现了eventfd触发IO事件到事件循环处理IO事件，最终到真实写入物理设备的全过程。</p>
+<hr>
+<h1 id="Reference"><a href="#Reference" class="headerlink" title="Reference"></a>Reference</h1><blockquote>
+<p>[1] <a target="_blank" rel="noopener" href="https://blog.vmsplice.net/2020/08/qemu-internals-event-loops.html">https://blog.vmsplice.net/2020/08/qemu-internals-event-loops.html</a></p>
+<p>[2] qemu/docs/devel/multiple-iothreads.txt</p>
+<p>[3] <a target="_blank" rel="noopener" href="https://developer.gnome.org/programming-guidelines/stable/main-contexts.html.en">https://developer.gnome.org/programming-guidelines/stable/main-contexts.html.en</a></p>
+<p>[4] <a target="_blank" rel="noopener" href="https://developer.gnome.org/glib/stable/glib-The-Main-Event-Loop.html#GSourceFuncs">https://developer.gnome.org/glib/stable/glib-The-Main-Event-Loop.html#GSourceFuncs</a></p>
+<p>[5] <a target="_blank" rel="noopener" href="https://blog.csdn.net/woai110120130/article/details/99701442">https://blog.csdn.net/woai110120130/article/details/99701442</a></p>
+<p>[6] <a target="_blank" rel="noopener" href="http://events17.linuxfoundation.org/sites/events/files/slides/Improving%20the%20QEMU%20Event%20Loop%20-%203.pdf">http://events17.linuxfoundation.org/sites/events/files/slides/Improving%20the%20QEMU%20Event%20Loop%20-%203.pdf</a></p>
+<p>[7] <a target="_blank" rel="noopener" href="https://blog.csdn.net/woai110120130/article/details/99693067">https://blog.csdn.net/woai110120130/article/details/99693067</a></p>
+<p>[8] <a target="_blank" rel="noopener" href="https://man7.org/linux/man-pages/man2/select.2.html">https://man7.org/linux/man-pages/man2/select.2.html</a></p>
+<p>[9] <a target="_blank" rel="noopener" href="https://man7.org/linux/man-pages/man2/poll.2.html">https://man7.org/linux/man-pages/man2/poll.2.html</a></p>
+<p>[10] 《QEMU/KVM 源码解析与应用》</p>
+<p>[11] <a target="_blank" rel="noopener" href="https://www.twblogs.net/a/5d069d36bd`9eee1ede038d15">https://www.twblogs.net/a/5d069d36bd`9eee1ede038d15</a></p>
+<p>[12] Kivity A, Kamay Y, Laor D, et al. kvm: the Linux Virtual Machine Monitor[J].</p>
+<p>[13] <a target="_blank" rel="noopener" href="https://segmentfault.com/a/1190000003063859">https://segmentfault.com/a/1190000003063859</a></p>
+<p>[14] <a target="_blank" rel="noopener" href="https://man7.org/linux/man-pages/man2/io_submit.2.html">https://man7.org/linux/man-pages/man2/io_submit.2.html</a></p>
+<p>[15] <a target="_blank" rel="noopener" href="https://www.jianshu.com/p/e4b29d16bae4">https://www.jianshu.com/p/e4b29d16bae4</a></p>
+</blockquote>
+
+            </div>
+            <hr>
+            <div>
+              <div class="post-metas mb-3">
+                
+                
+                  <div class="post-meta">
+                    <i class="iconfont icon-tags"></i>
+                    
+                      <a class="hover-with-bg" href="/tags/qemu/">qemu</a>
+                    
+                      <a class="hover-with-bg" href="/tags/thread/">thread</a>
+                    
+                  </div>
+                
+              </div>
+              
+                <p class="note note-warning">
+                  
+                    本博客所有文章除特别声明外，均采用 <a target="_blank" href="https://creativecommons.org/licenses/by-sa/4.0/deed.zh" rel="nofollow noopener noopener">CC BY-SA 4.0 协议</a> ，转载请注明出处！
+                  
+                </p>
+              
+              
+                <div class="post-prevnext">
+                  <article class="post-prev col-6">
+                    
+                    
+                      <a href="/2021/08/19/Virtualization-Start-from-QEMU/">
+                        <i class="iconfont icon-arrowleft"></i>
+                        <span class="hidden-mobile">Virtualization: Start from QEMU</span>
+                        <span class="visible-mobile">上一篇</span>
+                      </a>
+                    
+                  </article>
+                  <article class="post-next col-6">
+                    
+                    
+                      <a href="/2021/06/19/QEMU%E9%9D%A2%E5%90%91%E5%AF%B9%E8%B1%A1%E6%9E%B6%E6%9E%84%E8%AE%BE%E8%AE%A1%E5%88%86%E6%9E%90/">
+                        <span class="hidden-mobile">QEMU面向对象架构设计分析</span>
+                        <span class="visible-mobile">下一篇</span>
+                        <i class="iconfont icon-arrowright"></i>
+                      </a>
+                    
+                  </article>
+                </div>
+              
+            </div>
+
+            
+          </article>
+        </div>
+      </div>
+    </div>
+    
+      <div class="d-none d-lg-block col-lg-2 toc-container" id="toc-ctn">
+        <div id="toc">
+  <p class="toc-header"><i class="iconfont icon-list"></i>&nbsp;目录</p>
+  <div class="toc-body" id="toc-body"></div>
+</div>
+
+      </div>
+    
+  </div>
+</div>
+
+<!-- Custom -->
+
+
+    
+
+    
+      <a id="scroll-top-button" aria-label="TOP" href="#" role="button">
+        <i class="iconfont icon-arrowup" aria-hidden="true"></i>
+      </a>
+    
+
+    
+      <div class="modal fade" id="modalSearch" tabindex="-1" role="dialog" aria-labelledby="ModalLabel"
+     aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header text-center">
+        <h4 class="modal-title w-100 font-weight-bold">搜索</h4>
+        <button type="button" id="local-search-close" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body mx-3">
+        <div class="md-form mb-5">
+          <input type="text" id="local-search-input" class="form-control validate">
+          <label data-error="x" data-success="v"
+                 for="local-search-input">关键词</label>
+        </div>
+        <div class="list-group" id="local-search-result"></div>
+      </div>
+    </div>
+  </div>
+</div>
+    
+
+    
+  </main>
+
+  <footer class="text-center mt-5 py-3">
+  <div class="footer-content">
+     <a href="https://hexo.io" target="_blank" rel="nofollow noopener"><span>Hexo</span></a> <i class="iconfont icon-love"></i> <a href="https://github.com/fluid-dev/hexo-theme-fluid" target="_blank" rel="nofollow noopener"><span>Fluid</span></a> 
+  </div>
+  
+
+  
+
+  
+</footer>
+
+
+  <!-- SCRIPTS -->
+  
+  <script  src="https://cdn.jsdelivr.net/npm/nprogress@0/nprogress.min.js" ></script>
+  <link  rel="stylesheet" href="https://cdn.jsdelivr.net/npm/nprogress@0/nprogress.min.css" />
+
+  <script>
+    NProgress.configure({"showSpinner":false,"trickleSpeed":100})
+    NProgress.start()
+    window.addEventListener('load', function() {
+      NProgress.done();
+    })
+  </script>
+
+
+<script  src="https://cdn.jsdelivr.net/npm/jquery@3/dist/jquery.min.js" ></script>
+<script  src="https://cdn.jsdelivr.net/npm/bootstrap@4/dist/js/bootstrap.min.js" ></script>
+<script  src="/js/events.js" ></script>
+<script  src="/js/plugins.js" ></script>
+
+<!-- Plugins -->
+
+
+  <script  src="/js/local-search.js" ></script>
+
+
+
+  
+    <script  src="/js/img-lazyload.js" ></script>
+  
+
+
+
+  
+
+
+
+  
+    <script  src="https://cdn.jsdelivr.net/npm/tocbot@4/dist/tocbot.min.js" ></script>
+  
+  
+    <script  src="https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@3/dist/jquery.fancybox.min.js" ></script>
+  
+  
+    <script  src="https://cdn.jsdelivr.net/npm/anchor-js@4/anchor.min.js" ></script>
+  
+  
+    <script defer src="https://cdn.jsdelivr.net/npm/clipboard@2/dist/clipboard.min.js" ></script>
+  
+
+
+
+
+
+
+  <script  src="https://cdn.jsdelivr.net/npm/typed.js@2/lib/typed.min.js" ></script>
+  <script>
+    (function (window, document) {
+      var typing = Fluid.plugins.typing;
+      var title = document.getElementById('subtitle').title;
+      
+        typing(title);
+      
+    })(window, document);
+  </script>
+
+
+
+
+
+  
+
+  
+    <!-- MathJax -->
+    <script>
+      MathJax = {
+        tex: {
+          inlineMath: [['$', '$'], ['\\(', '\\)']]
+        },
+        loader: {
+          load: ['ui/lazy']
+        },
+        options: {
+          renderActions: {
+            findScript: [10, doc => {
+              document.querySelectorAll('script[type^="math/tex"]').forEach(node => {
+                const display = !!node.type.match(/; *mode=display/);
+                const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display);
+                const text = document.createTextNode('');
+                node.parentNode.replaceChild(text, node);
+                math.start = { node: text, delim: '', n: 0 };
+                math.end = { node: text, delim: '', n: 0 };
+                doc.math.push(math);
+              });
+            }, '', false],
+            insertedScript: [200, () => {
+              document.querySelectorAll('mjx-container').forEach(node => {
+                let target = node.parentNode;
+                if (target.nodeName.toLowerCase() === 'li') {
+                  target.parentNode.classList.add('has-jax');
+                }
+              });
+            }, '', false]
+          }
+        }
+      };
+    </script>
+
+    <script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js" ></script>
+
+  
+
+
+
+
+
+
+
+
+
+
+
+<!-- 主题的启动项 保持在最底部 -->
+<script  src="/js/boot.js" ></script>
+
+
+</body>
+</html>

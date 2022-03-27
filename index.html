@@ -233,6 +233,48 @@
     <article class="col-12 col-md-12 mx-auto index-info">
       <h1 class="index-header">
         
+        <a href="/2021/09/05/Virtio%E6%8F%90%E9%AB%98IO%E6%80%A7%E8%83%BD%E7%9A%84%E5%8E%9F%E5%9B%A0/" target="_self">
+          Virtio 提高IO性能的原因
+        </a>
+      </h1>
+
+      <p class="index-excerpt">
+        <a href="/2021/09/05/Virtio%E6%8F%90%E9%AB%98IO%E6%80%A7%E8%83%BD%E7%9A%84%E5%8E%9F%E5%9B%A0/" target="_self">
+          
+          1. virtio标准传统的IO设备模拟方案中，直接对硬件设备进行完全模拟，其寄存器、内存等硬件资源都需要使用软件来仿真。而实际上，我们并不需要对硬件进行完完全全的仿真，相反，我们可以利用一些特殊的方案来实现硬件的功能，同时降低软件的复杂度、降低IO请求的次数。virtio的设计目的是为了减少百花齐放却参差不齐的各种硬件模拟，提供一个统一、抽象、高效的接口。这个接口定义了一个IO设备的通用功能。v
+        </a>
+      </p>
+
+      <div class="index-btm post-metas">
+        
+          <div class="post-meta mr-3">
+            <i class="iconfont icon-date"></i>
+            <time datetime="2021-09-05 00:00" pubdate>
+              2021-09-05
+            </time>
+          </div>
+        
+        
+        
+          <div class="post-meta">
+            <i class="iconfont icon-tags"></i>
+            
+              <a href="/tags/qemu/">qemu</a>
+            
+              <a href="/tags/virtio/">virtio</a>
+            
+          </div>
+        
+      </div>
+    </article>
+  </div>
+
+  <div class="row mx-auto index-card">
+    
+    
+    <article class="col-12 col-md-12 mx-auto index-info">
+      <h1 class="index-header">
+        
         <a href="/2021/08/30/Insight-Of-Efficient-fault-injection-in-QEMU/" target="_self">
           Insight Of &#39;Efficient fault injection in QEMU&#39;
         </a>
@@ -275,6 +317,46 @@
     <article class="col-12 col-md-12 mx-auto index-info">
       <h1 class="index-header">
         
+        <a href="/2021/08/24/qemu_tcg/" target="_self">
+          qemu动态二进制翻译
+        </a>
+      </h1>
+
+      <p class="index-excerpt">
+        <a href="/2021/08/24/qemu_tcg/" target="_self">
+          
+          1. 大体实现框架qemu的tcg翻译实现分为运行前预编译的阶段和运行时阶段。 预编译阶段实现的工作是目标指令集的编写。这个阶段需要对目标指令集进行完整的处理，将指令集硬编码成C语言代码，称为微指令（micro operation）。这个微指令相对原本的指令集来说较为精简，且每一个函数都相对简单。硬编码完成后，使用gcc将这些代码编译成object文件（.o文件），这样我们的硬编码阶段就完成了。
+        </a>
+      </p>
+
+      <div class="index-btm post-metas">
+        
+          <div class="post-meta mr-3">
+            <i class="iconfont icon-date"></i>
+            <time datetime="2021-08-24 00:00" pubdate>
+              2021-08-24
+            </time>
+          </div>
+        
+        
+        
+          <div class="post-meta">
+            <i class="iconfont icon-tags"></i>
+            
+              <a href="/tags/qemu/">qemu</a>
+            
+          </div>
+        
+      </div>
+    </article>
+  </div>
+
+  <div class="row mx-auto index-card">
+    
+    
+    <article class="col-12 col-md-12 mx-auto index-info">
+      <h1 class="index-header">
+        
         <a href="/2021/08/19/Virtualization-Start-from-QEMU/" target="_self">
           Virtualization: Start from QEMU
         </a>
@@ -293,6 +375,128 @@
             <i class="iconfont icon-date"></i>
             <time datetime="2021-08-19 19:06" pubdate>
               2021-08-19
+            </time>
+          </div>
+        
+        
+        
+          <div class="post-meta">
+            <i class="iconfont icon-tags"></i>
+            
+              <a href="/tags/qemu/">qemu</a>
+            
+          </div>
+        
+      </div>
+    </article>
+  </div>
+
+  <div class="row mx-auto index-card">
+    
+    
+    <article class="col-12 col-md-12 mx-auto index-info">
+      <h1 class="index-header">
+        
+        <a href="/2021/07/10/QemuThreads/" target="_self">
+          Qemu Threads
+        </a>
+      </h1>
+
+      <p class="index-excerpt">
+        <a href="/2021/07/10/QemuThreads/" target="_self">
+          
+          TASK:   qemu事件循环是如何使设备并行运行的 1.1 验证设备对应fd，通过查看proc 1.2 打开的fd是通过何种方式注册的 ​    1.2.1 搞清楚vCPU线程和事件循环线程之间的关系（key：vCPU如何与一个可以产生事件的模拟硬件设备进行交互）  搞清楚IO线程，各种线程之间的区别 2.1 列出所有的线程   Qemu Threads1. 事件循环和qemu的线程1.1 事
+        </a>
+      </p>
+
+      <div class="index-btm post-metas">
+        
+          <div class="post-meta mr-3">
+            <i class="iconfont icon-date"></i>
+            <time datetime="2021-07-10 00:00" pubdate>
+              2021-07-10
+            </time>
+          </div>
+        
+        
+        
+          <div class="post-meta">
+            <i class="iconfont icon-tags"></i>
+            
+              <a href="/tags/qemu/">qemu</a>
+            
+              <a href="/tags/thread/">thread</a>
+            
+          </div>
+        
+      </div>
+    </article>
+  </div>
+
+  <div class="row mx-auto index-card">
+    
+    
+    <article class="col-12 col-md-12 mx-auto index-info">
+      <h1 class="index-header">
+        
+        <a href="/2021/06/19/QEMU%E9%9D%A2%E5%90%91%E5%AF%B9%E8%B1%A1%E6%9E%B6%E6%9E%84%E8%AE%BE%E8%AE%A1%E5%88%86%E6%9E%90/" target="_self">
+          QEMU面向对象架构设计分析
+        </a>
+      </h1>
+
+      <p class="index-excerpt">
+        <a href="/2021/06/19/QEMU%E9%9D%A2%E5%90%91%E5%AF%B9%E8%B1%A1%E6%9E%B6%E6%9E%84%E8%AE%BE%E8%AE%A1%E5%88%86%E6%9E%90/" target="_self">
+          
+          在QEMU的QOM框架下定义一个新设备，需要遵循相应的接口，其中最重要的就是设计派生的ObjectClass和Object。这里，我们以一个具体的设备（qemu&#x2F;hw&#x2F;misc&#x2F;edu.c）为例，分析从设计设备到将其载入QEMU系统的过程。 一、新设备的定义——派生的ObjectClass和ObjectObjectClass是一类设备的抽象概念，而Object则是具体设备的概念。这两个概念相互协同
+        </a>
+      </p>
+
+      <div class="index-btm post-metas">
+        
+          <div class="post-meta mr-3">
+            <i class="iconfont icon-date"></i>
+            <time datetime="2021-06-19 00:00" pubdate>
+              2021-06-19
+            </time>
+          </div>
+        
+        
+        
+          <div class="post-meta">
+            <i class="iconfont icon-tags"></i>
+            
+              <a href="/tags/qemu/">qemu</a>
+            
+          </div>
+        
+      </div>
+    </article>
+  </div>
+
+  <div class="row mx-auto index-card">
+    
+    
+    <article class="col-12 col-md-12 mx-auto index-info">
+      <h1 class="index-header">
+        
+        <a href="/2021/06/18/QEMU%E6%A6%82%E5%BF%B5%E5%92%8C%E5%AE%9E%E4%BD%93%E7%9A%84%E5%85%B7%E4%BD%93%E5%88%86%E6%9E%90/" target="_self">
+          QEMU概念和实体的具体分析
+        </a>
+      </h1>
+
+      <p class="index-excerpt">
+        <a href="/2021/06/18/QEMU%E6%A6%82%E5%BF%B5%E5%92%8C%E5%AE%9E%E4%BD%93%E7%9A%84%E5%85%B7%E4%BD%93%E5%88%86%E6%9E%90/" target="_self">
+          
+          首先在main执行之前的程序准备阶段，先根据我们提供的register_type函数得到一个ModuleEntry的实体，这个实体是每个设备都对应有一个的，这个实体可以调用我们为设备定义的pci_edu_register_types函数，用于初始化。 12345678910111213void register_module_init(void (*fn)(void), module_init_t
+        </a>
+      </p>
+
+      <div class="index-btm post-metas">
+        
+          <div class="post-meta mr-3">
+            <i class="iconfont icon-date"></i>
+            <time datetime="2021-06-18 00:00" pubdate>
+              2021-06-18
             </time>
           </div>
         

@@ -18,21 +18,21 @@
   <meta name="author" content="Zhang Jing">
   <meta name="keywords" content="">
   
-    <meta name="description" content="当我们需要找一个文件，却不知道文件的位置，我们应该怎么做呢？ 答案很简单，使用 find 命令就可以了。但是我使用了更modern的命令 fd，这个命令可以在unix&#x2F;Linux下使用各种包管理工具下载。 我有一个真实的文件 int_test.psm，我不知道他藏在哪里，于是我决定搜索一番。 12$ fd int_test.psmDownloads&#x2F;KCPSM3&#x2F;Assembler&#x2F;in">
+    <meta name="description" content="1. 大体实现框架qemu的tcg翻译实现分为运行前预编译的阶段和运行时阶段。 预编译阶段实现的工作是目标指令集的编写。这个阶段需要对目标指令集进行完整的处理，将指令集硬编码成C语言代码，称为微指令（micro operation）。这个微指令相对原本的指令集来说较为精简，且每一个函数都相对简单。硬编码完成后，使用gcc将这些代码编译成object文件（.o文件），这样我们的硬编码阶段就完成了。">
 <meta property="og:type" content="article">
-<meta property="og:title" content="如何一行命令跳转到目标文件的文件夹下">
-<meta property="og:url" content="https://mrzleo.github.io/2022/03/27/%E5%A6%82%E4%BD%95%E4%B8%80%E8%A1%8C%E5%91%BD%E4%BB%A4%E8%B7%B3%E8%BD%AC%E5%88%B0%E7%9B%AE%E6%A0%87%E6%96%87%E4%BB%B6%E7%9A%84%E6%96%87%E4%BB%B6%E5%A4%B9%E4%B8%8B/index.html">
+<meta property="og:title" content="qemu动态二进制翻译">
+<meta property="og:url" content="https://mrzleo.github.io/2021/08/24/qemu_tcg/index.html">
 <meta property="og:site_name" content="Technical Blog">
-<meta property="og:description" content="当我们需要找一个文件，却不知道文件的位置，我们应该怎么做呢？ 答案很简单，使用 find 命令就可以了。但是我使用了更modern的命令 fd，这个命令可以在unix&#x2F;Linux下使用各种包管理工具下载。 我有一个真实的文件 int_test.psm，我不知道他藏在哪里，于是我决定搜索一番。 12$ fd int_test.psmDownloads&#x2F;KCPSM3&#x2F;Assembler&#x2F;in">
+<meta property="og:description" content="1. 大体实现框架qemu的tcg翻译实现分为运行前预编译的阶段和运行时阶段。 预编译阶段实现的工作是目标指令集的编写。这个阶段需要对目标指令集进行完整的处理，将指令集硬编码成C语言代码，称为微指令（micro operation）。这个微指令相对原本的指令集来说较为精简，且每一个函数都相对简单。硬编码完成后，使用gcc将这些代码编译成object文件（.o文件），这样我们的硬编码阶段就完成了。">
 <meta property="og:locale" content="zh_CN">
-<meta property="article:published_time" content="2022-03-26T16:18:42.000Z">
-<meta property="article:modified_time" content="2022-03-27T06:08:01.055Z">
+<meta property="article:published_time" content="2021-08-23T16:00:00.000Z">
+<meta property="article:modified_time" content="2022-03-27T06:38:06.809Z">
 <meta property="article:author" content="Zhang Jing">
-<meta property="article:tag" content="Linux命令行技巧">
+<meta property="article:tag" content="qemu">
 <meta name="twitter:card" content="summary_large_image">
   
   
-  <title>如何一行命令跳转到目标文件的文件夹下 - Technical Blog</title>
+  <title>qemu动态二进制翻译 - Technical Blog</title>
 
   <link  rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4/dist/css/bootstrap.min.css" />
 
@@ -178,7 +178,7 @@
       <div class="full-bg-img">
         <div class="mask flex-center" style="background-color: rgba(0, 0, 0, 0.3)">
           <div class="page-header text-center fade-in-up">
-            <span class="h2" id="subtitle" title="如何一行命令跳转到目标文件的文件夹下">
+            <span class="h2" id="subtitle" title="qemu动态二进制翻译">
               
             </span>
 
@@ -188,8 +188,8 @@
   
     <span class="post-meta">
       <i class="iconfont icon-date-fill" aria-hidden="true"></i>
-      <time datetime="2022-03-27 00:18" pubdate>
-        2022年3月27日 凌晨
+      <time datetime="2021-08-24 00:00" pubdate>
+        2021年8月24日 凌晨
       </time>
     </span>
   
@@ -199,7 +199,7 @@
   
     <span class="post-meta mr-2">
       <i class="iconfont icon-chart"></i>
-      1.4k 字
+      2.3k 字
     </span>
   
 
@@ -208,7 +208,7 @@
       <i class="iconfont icon-clock-fill"></i>
       
       
-      12 分钟
+      19 分钟
     </span>
   
 
@@ -237,48 +237,33 @@
         <div class="py-5" id="board">
           <article class="post-content mx-auto">
             <!-- SEO header -->
-            <h1 style="display: none">如何一行命令跳转到目标文件的文件夹下</h1>
+            <h1 style="display: none">qemu动态二进制翻译</h1>
             
             <div class="markdown-body">
-              <p>当我们需要找一个文件，却不知道文件的位置，我们应该怎么做呢？</p>
-<p>答案很简单，使用 <code>find</code> 命令就可以了。但是我使用了更modern的命令 <code>fd</code>，这个命令可以在unix&#x2F;Linux下使用各种包管理工具下载。</p>
-<p>我有一个真实的文件 <code>int_test.psm</code>，我不知道他藏在哪里，于是我决定搜索一番。</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><div class="code-wrapper"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></div></td><td class="code"><pre><code class="hljs shell"><span class="hljs-meta prompt_">$ </span><span class="language-bash">fd int_test.psm</span><br>Downloads/KCPSM3/Assembler/int_test.psm<br></code></pre></td></tr></table></figure>
-
-<p>现在我知道了他的位置了，我想直接跳转到他的文件夹下操作，这怎么办呢？</p>
-<p>首先我们要将这个输出传递出来交给 <code>cd</code>。但是直接的管道操作是行不通的。</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs shell"><span class="hljs-meta prompt_">$ </span><span class="language-bash">fd int_test.psm | <span class="hljs-built_in">cd</span></span><br></code></pre></td></tr></table></figure>
-
-<p>想要将一个命令的结果当成另一个命令的参数，突然想起有一个命令确实做的是这件事！那就是—— <code>xargs</code>。</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs shell"><span class="hljs-meta prompt_">$ </span><span class="language-bash"><span class="hljs-built_in">echo</span> <span class="hljs-string">&quot;hi&quot;</span> | xargs <span class="hljs-built_in">echo</span></span><br>hi<br></code></pre></td></tr></table></figure>
-
-<p>这个命令的原理就是获取管道一侧的输入，将其作为管道另一端的命令的参数。</p>
-<p>那么我们来试试吧：</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs shell"><span class="hljs-meta prompt_">$ </span><span class="language-bash">fd int_test.psm | xargs <span class="hljs-built_in">cd</span></span><br>/usr/bin/cd: line 4: cd: ./Downloads/KCPSM3/Assembler/int_test.psm: Not a directory<br></code></pre></td></tr></table></figure>
-
-<p>获得了一个错误❌……</p>
-<p>错误信息告诉我们，我们给cd的参数不是一个文件夹。确实如此，<code>fd</code> 得到的是文件的绝对地址，而不是文件所在的文件夹。这又怎么办呢？我们需要一个命令能够给我们分离出文件的文件夹。</p>
-<p>本着觉得这种东西应该存在，它就应该真的存在的原则，我来到了<a target="_blank" rel="noopener" href="https://www.gnu.org/software/coreutils/manual/coreutils.html#toc-Directory-listing-1">gnu的coreutils列表</a>。这里存放着gnu为Linux设计的各种核心工具，里面包括我们熟知的 <code>cd</code>, <code>cp</code>, <code>mv</code> 等等重要的命令行工具。搜索 <code>directory</code>，我发现了宝贝—— <code>dirname</code>。这个命令的简介说他可以输出把一个地址的最后一个 &#x2F; 及其后面的内容去掉的结果：</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs shell"><span class="hljs-meta prompt_">$ </span><span class="language-bash"><span class="hljs-built_in">dirname</span> /dev/zero</span><br>/dev<br></code></pre></td></tr></table></figure>
-
-<p>这不是正合我意吗？赶紧试试：</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs shell"><span class="hljs-meta prompt_">$ </span><span class="language-bash">fd int_test.psm | xargs <span class="hljs-built_in">dirname</span></span><br>./Downloads/KCPSM3/Assembler<br></code></pre></td></tr></table></figure>
-
-<p>很好，这就是我要的，然后我们再尝试一次 <code>xargs</code>：</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs shell"><span class="hljs-meta prompt_">$ </span><span class="language-bash">fd int_test.psm | xargs <span class="hljs-built_in">dirname</span> | xargs <span class="hljs-built_in">cd</span></span><br></code></pre></td></tr></table></figure>
-
-<p>事情并不像我们想的那样，我们的位置仍然没有发生变化。</p>
-<p>这又是为什么呢😭</p>
-<p>原来我们对 <code>xargs</code> 的理解不对。 <code>xargs</code>  会 <code>fork</code> 出一个新进程来执行操作，而执行操作只会在子进程中执行，最后输出会定想到标准输出，从而显示在屏幕。其实，大多数情况下，shell中执行命令的方式都是这样的，shell <code>fork</code> 出子进程，再利用 <code>exec</code> 家族的函数来执行真实的指令。但是 <code>cd</code> 的实现却不同， <code>cd </code> 必须在原本这一层完成执行，因为任何 <code>fork</code> 出来的进程切换文件夹都对我们没有意义。因此，<code>cd</code> 不能通过这种形式被执行。</p>
-<p>那么回到主题，我们到底怎么才能实现这个跳转呢？</p>
-<p>答案就是，先执行命令获得文件夹地址，然后将其作为cd的输入，我们需要这样写：</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs shell"><span class="hljs-meta prompt_">$ </span><span class="language-bash"><span class="hljs-built_in">cd</span> $(fd int_test.psm | xargs <span class="hljs-built_in">dirname</span>)</span><br></code></pre></td></tr></table></figure>
-
-<p>或者</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs shell"><span class="hljs-meta prompt_">$ </span><span class="language-bash"><span class="hljs-built_in">cd</span> $(<span class="hljs-built_in">dirname</span> $(fd int_test.psm))</span><br></code></pre></td></tr></table></figure>
-
-<p>请注意，我目前在 <code>zsh</code> 环境下，<code>bash</code> 或其他可能会存在语法不同。</p>
-<p>其中，<code>$(...)</code> 的语法是指将其结果取出并放置在这个位置。那么他就可以成为 <code>cd</code> 的参数了。</p>
+              <h2 id="1-大体实现框架"><a href="#1-大体实现框架" class="headerlink" title="1. 大体实现框架"></a>1. 大体实现框架</h2><p>qemu的tcg翻译实现分为运行前预编译的阶段和运行时阶段。</p>
+<p><strong>预编译阶段实现的工作是目标指令集的编写</strong>。这个阶段需要对目标指令集进行完整的处理，将指令集硬编码成C语言代码，称为微指令（micro operation）。这个微指令相对原本的指令集来说较为精简，且每一个函数都相对简单。硬编码完成后，使用gcc将这些代码编译成object文件（.o文件），这样我们的硬编码阶段就完成了。</p>
+<p><strong>实现了硬编码之后，qemu采用一个<code>dyngen</code>的引擎生成动态翻译器</strong>，这个动态翻译器由目标指令集区分，接受我们上述编译好的.o文件，在运行时生成对应的目标汇编代码。在运行过程中，动态翻译器会将guest code转换成对应的micro op的组合，同时将对应的参数重定位（relocate）到micro op中，然后生成对应的汇编代码。</p>
+<h2 id="2-实现细节"><a href="#2-实现细节" class="headerlink" title="2. 实现细节"></a>2. 实现细节</h2><h3 id="2-1-Translated-Block-amp-Translated-Cache"><a href="#2-1-Translated-Block-amp-Translated-Cache" class="headerlink" title="2.1 Translated Block &amp; Translated Cache"></a>2.1 Translated Block &amp; Translated Cache</h3><blockquote>
+<p><strong>Translated Block(TBs)</strong>：一条语句开始～遇到跳转 / 以翻译期无法推断的方法修改静态CPU状态（static CPU state）时结束</p>
+<p><strong>Translated Cache</strong>：16Mbyte，为了设计简单，cache满了之后会全部刷新</p>
+<p><strong>Static CPU State</strong>：翻译时，进入TB时可以确定的CPU状态</p>
+</blockquote>
+<h3 id="2-2-寄存器分配"><a href="#2-2-寄存器分配" class="headerlink" title="2.2 寄存器分配"></a>2.2 寄存器分配</h3><p><strong>&lt;- 这部分基于初代qemu论文，可能已经过时 -&gt;</strong></p>
+<p>qemu使用固定的寄存器映射，即guest的寄存器固定映射到host的某些寄存器。通常来说，guest的大部分寄存器都存储在内存中，只利用几个寄存器存储一些暂时的变量。这样做可以消除架构之间的差异，设计更简单、移植性更好。</p>
+<h3 id="2-3-条件代码优化"><a href="#2-3-条件代码优化" class="headerlink" title="2.3 条件代码优化"></a>2.3 条件代码优化</h3><p>为了更好的性能，qemu没有像真实的指令集一样，运行一条指令修改一次状态flag。qemu采用了一个比较聪明的办法，执行过程中存储了三个变量<code>CC_SRC</code>、<code>CC_DST</code>、<code>CC_OP</code>。第一个变量表示指令的一个操作数，第二个变量表示指令的目的操作数，最后一个变量表示指令进行的操作。这样，每执行一条指令，就修改这三个变量，这个过程非常快。当我们需要用到状态flag的时候，例如ZF、OF这类的值，可以通过这些变量反向推导出flag的值。这样避免了每次都需要计算一次flag的繁琐计算和性能消耗。</p>
+<p>同时，这个方案还可以优化。在一个TB中，反向分析前一个语句的三个变量有没有被该语句使用，如果没有使用，就直接删去变量的赋值。</p>
+<h3 id="2-4-直接块链技术（direct-block-chaining）"><a href="#2-4-直接块链技术（direct-block-chaining）" class="headerlink" title="2.4 直接块链技术（direct block chaining）"></a>2.4 直接块链技术（direct block chaining）</h3><p>每一个TB运行结束后，通过哈希表查找跳转的下一个TB，如果TB已经被翻译好了，那么直接跳转，否则翻译。为了加速这一过程，还可以直接修改TB，使其直接跳转到下一个确定的TB。</p>
+<h3 id="2-5-内存管理"><a href="#2-5-内存管理" class="headerlink" title="2.5 内存管理"></a>2.5 内存管理</h3><p>qemu采用软件实现的MMU，并且使用一个地址翻译缓存来加速地址转换。为了避免每次MMU映射发生变化时刷新翻译的代码，QEMU使用了一个物理索引的翻译缓存，即TB采用物理地址索引。通过软件实现的MMU，就可以实现在Guest上VA-&gt;PA的转换。</p>
+<h3 id="2-6-异常的支持"><a href="#2-6-异常的支持" class="headerlink" title="2.6 异常的支持"></a>2.6 异常的支持</h3><p>qemu能够通过TB捕获异常发生时对应的指令和CPU状态的精确信息。</p>
+<h3 id="2-7-硬件中断"><a href="#2-7-硬件中断" class="headerlink" title="2.7 硬件中断"></a>2.7 硬件中断</h3><p>为了性能，qemu不会在执行每一条语句的时候判断是否产生硬件中断，用户必须异步地调用特殊的中断函数来通知qemu产生了中断，这个中断函数会对TB的跳转链进行设置，确保完成中断响应之后能够返回正确的位置继续执行。</p>
+<h2 id="3-从Guest-Physical-Address到Host-Virtual-Address"><a href="#3-从Guest-Physical-Address到Host-Virtual-Address" class="headerlink" title="3. 从Guest Physical Address到Host Virtual Address"></a>3. 从Guest Physical Address到Host Virtual Address</h2><p>上面我们提及了内核范围内TCG的实现，接下来考虑一个问题：翻译成Guest物理地址之后，代码开始执行。执行的过程中，由于没有kvm和硬件的支持，我们怎样利用软件实现来完成Guest地址到Host地址的转化呢？</p>
+<p>答案则是使用结构体进行管理对应的映射关系。我们都知道，在qemu中使用MemoryRegion对设备（不论是内核设备还是外设）进行地址管理。TB执行过程中，程序拿着翻译好的GVA开始找对应的设备，通过MemoryRegion查找到对应的设备。此时设备要开始执行了，设备需要自己的内存时（例如内存条、显卡），问题出现了，设备如何查找对应的内存呢？解决的办法很简单，只需要在MemoryRegion中存储对应的内容，能够顺着一路找到HVA就可以了。找到了HVA，接下来就是Host层面的OS可以处理的了。</p>
+<p>在MemoryRegion中，存在这样一个成员：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><div class="code-wrapper"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></div></td><td class="code"><pre><code class="hljs c"><span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">MemoryRegion</span> &#123;</span><br>    ...<br>    RAMBlock *ram_block; <span class="hljs-comment">//指向对应的RAMBlock</span><br>    ...<br>&#125;;<br></code></pre></td></tr></table></figure>
+<p>这个成员的定义如下：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">RAMBlock</span> &#123;</span><br>   	...<br>    <span class="hljs-type">uint8_t</span> *host;         <span class="hljs-comment">// 对应的HVA</span><br>    ...<br>&#125;;<br></code></pre></td></tr></table></figure>
+<p>很明显，MemoryRegion可以直接对应查询到HVA。这些信息在设备创建（即向Host使用mmp申请空间）的时候就完成并存储下来了，TB执行的时候可以很方便地查询到，这样就完成了地址的转换。当然了，为了找到准确的地址，还需要进行例如offset和对齐等等操作，这些操作太过细节，这里就不再赘述了。</p>
+<h2 id="Reference"><a href="#Reference" class="headerlink" title="Reference"></a>Reference</h2><p>[1] Bellard F. QEMU, a fast and portable dynamic translator[C]//USENIX annual technical conference, FREENIX Track. 2005, 41: 46.</p>
 
             </div>
             <hr>
@@ -289,7 +274,7 @@
                   <div class="post-meta">
                     <i class="iconfont icon-tags"></i>
                     
-                      <a class="hover-with-bg" href="/tags/Linux%E5%91%BD%E4%BB%A4%E8%A1%8C%E6%8A%80%E5%B7%A7/">Linux命令行技巧</a>
+                      <a class="hover-with-bg" href="/tags/qemu/">qemu</a>
                     
                   </div>
                 
@@ -306,12 +291,18 @@
                   <article class="post-prev col-6">
                     
                     
+                      <a href="/2021/08/30/Insight-Of-Efficient-fault-injection-in-QEMU/">
+                        <i class="iconfont icon-arrowleft"></i>
+                        <span class="hidden-mobile">Insight Of 'Efficient fault injection in QEMU'</span>
+                        <span class="visible-mobile">上一篇</span>
+                      </a>
+                    
                   </article>
                   <article class="post-next col-6">
                     
                     
-                      <a href="/2021/09/05/Virtio%E6%8F%90%E9%AB%98IO%E6%80%A7%E8%83%BD%E7%9A%84%E5%8E%9F%E5%9B%A0/">
-                        <span class="hidden-mobile">Virtio 提高IO性能的原因</span>
+                      <a href="/2021/08/19/Virtualization-Start-from-QEMU/">
+                        <span class="hidden-mobile">Virtualization: Start from QEMU</span>
                         <span class="visible-mobile">下一篇</span>
                         <i class="iconfont icon-arrowright"></i>
                       </a>

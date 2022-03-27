@@ -1,0 +1,538 @@
+
+
+<!DOCTYPE html>
+<html lang="zh-CN" data-default-color-scheme=auto>
+
+
+
+<head>
+  <meta charset="UTF-8">
+  <link rel="apple-touch-icon" sizes="76x76" href="/img/favicon.png">
+  <link rel="icon" href="/img/favicon.png">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, shrink-to-fit=no">
+  <meta http-equiv="x-ua-compatible" content="ie=edge">
+  
+    <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
+  
+  <meta name="theme-color" content="#2f4154">
+  <meta name="author" content="Zhang Jing">
+  <meta name="keywords" content="">
+  
+    <meta name="description" content="在QEMU的QOM框架下定义一个新设备，需要遵循相应的接口，其中最重要的就是设计派生的ObjectClass和Object。这里，我们以一个具体的设备（qemu&#x2F;hw&#x2F;misc&#x2F;edu.c）为例，分析从设计设备到将其载入QEMU系统的过程。 一、新设备的定义——派生的ObjectClass和ObjectObjectClass是一类设备的抽象概念，而Object则是具体设备的概念。这两个概念相互协同">
+<meta property="og:type" content="article">
+<meta property="og:title" content="QEMU面向对象架构设计分析">
+<meta property="og:url" content="https://mrzleo.github.io/2021/06/19/QEMU%E9%9D%A2%E5%90%91%E5%AF%B9%E8%B1%A1%E6%9E%B6%E6%9E%84%E8%AE%BE%E8%AE%A1%E5%88%86%E6%9E%90/index.html">
+<meta property="og:site_name" content="Technical Blog">
+<meta property="og:description" content="在QEMU的QOM框架下定义一个新设备，需要遵循相应的接口，其中最重要的就是设计派生的ObjectClass和Object。这里，我们以一个具体的设备（qemu&#x2F;hw&#x2F;misc&#x2F;edu.c）为例，分析从设计设备到将其载入QEMU系统的过程。 一、新设备的定义——派生的ObjectClass和ObjectObjectClass是一类设备的抽象概念，而Object则是具体设备的概念。这两个概念相互协同">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2021-06-18T16:00:00.000Z">
+<meta property="article:modified_time" content="2022-03-27T06:41:11.914Z">
+<meta property="article:author" content="Zhang Jing">
+<meta property="article:tag" content="qemu">
+<meta name="twitter:card" content="summary_large_image">
+  
+  
+  <title>QEMU面向对象架构设计分析 - Technical Blog</title>
+
+  <link  rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4/dist/css/bootstrap.min.css" />
+
+
+  <link  rel="stylesheet" href="https://cdn.jsdelivr.net/npm/github-markdown-css@4/github-markdown.min.css" />
+  <link  rel="stylesheet" href="https://cdn.jsdelivr.net/npm/hint.css@2/e/hint.min.css" />
+
+  
+    
+    
+      
+      <link  rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@10/styles/github-gist.min.css" />
+    
+  
+
+  
+    <link  rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@3/dist/jquery.fancybox.min.css" />
+  
+
+
+<!-- 主题依赖的图标库，不要自行修改 -->
+
+<link rel="stylesheet" href="//at.alicdn.com/t/font_1749284_ba1fz6golrf.css">
+
+
+
+<link rel="stylesheet" href="//at.alicdn.com/t/font_1736178_lbnruvf0jn.css">
+
+
+<link  rel="stylesheet" href="/css/main.css" />
+
+<!-- 自定义样式保持在最底部 -->
+
+
+  <script id="fluid-configs">
+    var Fluid = window.Fluid || {};
+    var CONFIG = {"hostname":"mrzleo.github.io","root":"/","version":"1.8.14","typing":{"enable":true,"typeSpeed":70,"cursorChar":"_","loop":false},"anchorjs":{"enable":true,"element":"h1,h2,h3,h4,h5,h6","placement":"right","visible":"hover","icon":""},"progressbar":{"enable":true,"height_px":3,"color":"#29d","options":{"showSpinner":false,"trickleSpeed":100}},"copy_btn":true,"image_zoom":{"enable":true,"img_url_replace":["",""]},"toc":{"enable":true,"headingSelector":"h1,h2,h3,h4,h5,h6","collapseDepth":0},"lazyload":{"enable":true,"loading_img":"/img/loading.gif","onlypost":false,"offset_factor":2},"web_analytics":{"enable":false,"baidu":null,"google":null,"gtag":null,"tencent":{"sid":null,"cid":null},"woyaola":null,"cnzz":null,"leancloud":{"app_id":null,"app_key":null,"server_url":null,"path":"window.location.pathname","ignore_local":false}},"search_path":"/local-search.xml"};
+  </script>
+  <script  src="/js/utils.js" ></script>
+  <script  src="/js/color-schema.js" ></script>
+<meta name="generator" content="Hexo 6.1.0"></head>
+
+
+<body>
+  <header style="height: 70vh;">
+    <nav id="navbar" class="navbar fixed-top  navbar-expand-lg navbar-dark scrolling-navbar">
+  <div class="container">
+    <a class="navbar-brand" href="/">
+      <strong>MrzLeo</strong>
+    </a>
+
+    <button id="navbar-toggler-btn" class="navbar-toggler" type="button" data-toggle="collapse"
+            data-target="#navbarSupportedContent"
+            aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+      <div class="animated-icon"><span></span><span></span><span></span></div>
+    </button>
+
+    <!-- Collapsible content -->
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+      <ul class="navbar-nav ml-auto text-center">
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/">
+                <i class="iconfont icon-home-fill"></i>
+                首页
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/archives/">
+                <i class="iconfont icon-archive-fill"></i>
+                归档
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/categories/">
+                <i class="iconfont icon-category-fill"></i>
+                分类
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/tags/">
+                <i class="iconfont icon-tags-fill"></i>
+                标签
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/about/">
+                <i class="iconfont icon-user-fill"></i>
+                关于
+              </a>
+            </li>
+          
+        
+        
+          <li class="nav-item" id="search-btn">
+            <a class="nav-link" target="_self" href="javascript:;" data-toggle="modal" data-target="#modalSearch" aria-label="Search">
+              &nbsp;<i class="iconfont icon-search"></i>&nbsp;
+            </a>
+          </li>
+        
+        
+          <li class="nav-item" id="color-toggle-btn">
+            <a class="nav-link" target="_self" href="javascript:;" aria-label="Color Toggle">&nbsp;<i
+                class="iconfont icon-dark" id="color-toggle-icon"></i>&nbsp;</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</nav>
+
+    <div class="banner" id="banner" parallax=true
+         style="background: url('/img/default.png') no-repeat center center;
+           background-size: cover;">
+      <div class="full-bg-img">
+        <div class="mask flex-center" style="background-color: rgba(0, 0, 0, 0.3)">
+          <div class="page-header text-center fade-in-up">
+            <span class="h2" id="subtitle" title="QEMU面向对象架构设计分析">
+              
+            </span>
+
+            
+              <div class="mt-3">
+  
+  
+    <span class="post-meta">
+      <i class="iconfont icon-date-fill" aria-hidden="true"></i>
+      <time datetime="2021-06-19 00:00" pubdate>
+        2021年6月19日 凌晨
+      </time>
+    </span>
+  
+</div>
+
+<div class="mt-1">
+  
+    <span class="post-meta mr-2">
+      <i class="iconfont icon-chart"></i>
+      13k 字
+    </span>
+  
+
+  
+    <span class="post-meta mr-2">
+      <i class="iconfont icon-clock-fill"></i>
+      
+      
+      109 分钟
+    </span>
+  
+
+  
+  
+</div>
+
+            
+          </div>
+
+          
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    
+      
+
+<div class="container-fluid nopadding-x">
+  <div class="row nomargin-x">
+    <div class="d-none d-lg-block col-lg-2"></div>
+    <div class="col-lg-8 nopadding-x-md">
+      <div class="container nopadding-x-md" id="board-ctn">
+        <div class="py-5" id="board">
+          <article class="post-content mx-auto">
+            <!-- SEO header -->
+            <h1 style="display: none">QEMU面向对象架构设计分析</h1>
+            
+            <div class="markdown-body">
+              <p>在QEMU的QOM框架下定义一个新设备，需要遵循相应的接口，其中最重要的就是设计派生的<code>ObjectClass</code>和<code>Object</code>。这里，我们以一个具体的设备（qemu/hw/misc/edu.c）为例，分析从设计设备到将其载入QEMU系统的过程。</p>
+<h3 id="一、新设备的定义——派生的ObjectClass和Object"><a href="#一、新设备的定义——派生的ObjectClass和Object" class="headerlink" title="一、新设备的定义——派生的ObjectClass和Object"></a>一、新设备的定义——派生的<code>ObjectClass</code>和<code>Object</code></h3><p><code>ObjectClass</code>是一类设备的抽象概念，而<code>Object</code>则是具体设备的概念。这两个概念相互协同，我们将极度抽象的、笼统的、概述的内容写入<code>ObjectClass</code>，而将具体的、专有的、特别的内容写入<code>Object</code>。以从语言机制上支持面向对象的C++为例，<code>ObjectClass</code>就像是一个class的成员函数和static变量的集合，而<code>Object</code>则是class的成员变量的集合。</p>
+<p>对于一个新设备，我们首先需要确定的是这个设备从属的类别。比如，edu设备是一个PCI设备，因此，它在<code>ObjectClass</code>的概念上属于<code>PCIDeviceClass</code>。在<code>ObjectClass</code>层面上需要实现继承的关系，从而便于实现多态的机制。要注意的是，所有的父<code>ObjectClass</code>都必须是结构体中的第一个变量。C语言的机制能够保证第一个变量从偏移量为0的位置开始存储，因而为我们成功实现父子类转换提供了保证。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><div class="code-wrapper"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></div></td><td class="code"><pre><code class="hljs c"><span class="hljs-keyword">typedef</span> <span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">PCIDeviceClass</span> &#123;</span><br>    DeviceClass parent_class; <span class="hljs-comment">// inherit DeviceClass</span><br>	<span class="hljs-comment">// other fields</span><br>&#125; PCIDeviceClass;<br></code></pre></td></tr></table></figure>
+<p>其次，我们还需要为新设备定义一个专有的派生的<code>Object</code>，例如，edu设备定义的<code>Object</code>就是<code>EduState</code>。这里也需要实现继承的机制，与上述的<code>ObjectClass</code>是一致的。这其中包含的信息是<code>edu</code>设备专有的，例如edu设备的中断信号、dma结构和dma信号等。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-keyword">typedef</span> <span class="hljs-class"><span class="hljs-keyword">struct</span> &#123;</span><br>    PCIDevice pdev;     <span class="hljs-comment">// inherit PCI device</span><br>    <span class="hljs-comment">// other fields</span><br>&#125; EduState;<br></code></pre></td></tr></table></figure>
+<p>定义完成之后，我们便首先完成了最基本的工作。</p>
+<h3 id="二、从TypeInfo开始进行的系统注册"><a href="#二、从TypeInfo开始进行的系统注册" class="headerlink" title="二、从TypeInfo开始进行的系统注册"></a>二、从<code>TypeInfo</code>开始进行的系统注册</h3><h4 id="1-TypeInfo"><a href="#1-TypeInfo" class="headerlink" title="1. TypeInfo"></a>1. TypeInfo</h4><p>QOM是一个满足动态添加的架构，我们完成设计之后可以按照QOM提供的接口将设备挂载到QEMU的设备系统之中。其中，第一步就是实现<code>TypeInfo</code>结构体。<code>TypeInfo</code>结构体所包含的内容如下：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">TypeInfo</span></span><br><span class="hljs-class">&#123;</span><br>    <span class="hljs-type">const</span> <span class="hljs-type">char</span> *name;						<span class="hljs-comment">// The name of the type.</span><br>    <span class="hljs-type">const</span> <span class="hljs-type">char</span> *parent;						<span class="hljs-comment">// The name of the parent type.</span><br><br>    <span class="hljs-type">size_t</span> instance_size;					<span class="hljs-comment">// The size of the object (derivative of #Object).</span><br>    <span class="hljs-type">void</span> (*instance_init)(Object *obj);		<span class="hljs-comment">// This function is called to initialize an object.</span><br>    <span class="hljs-type">void</span> (*instance_post_init)(Object *obj);<span class="hljs-comment">/* This function is called to finish initialization of</span><br><span class="hljs-comment">											an object, after all @instance_init functions were called. */</span><br>    <span class="hljs-type">void</span> (*instance_finalize)(Object *obj); <span class="hljs-comment">// This function is called during object destruction.</span><br><br>    <span class="hljs-type">bool</span> abstract;<br>    <span class="hljs-type">size_t</span> class_size;						<span class="hljs-comment">// The size of the class object (derivative of #ObjectClass)</span><br>											<span class="hljs-comment">// for this object.</span><br><br>    <span class="hljs-type">void</span> (*class_init)(ObjectClass *klass, <span class="hljs-type">void</span> *data);<br>    <span class="hljs-type">void</span> (*class_base_init)(ObjectClass *klass, <span class="hljs-type">void</span> *data);<br>    <span class="hljs-type">void</span> *class_data;<br><br>    InterfaceInfo *interfaces;				<span class="hljs-comment">// The list of interfaces associated with this type.</span><br>&#125;;<br></code></pre></td></tr></table></figure>
+<p>这个结构体的内容需要按实际进行填写。例如，edu设备中，由于edu设备不需要重新定义一个新的<code>ObjectClass</code>（因为edu设备与<code>PCIDeviceClass</code>相比，没有独有的属性，如果设计一个edu设备，除了<code>PCIDeviceClass</code>之外将为空），因此这里的<code>class_size</code>不需要填写，系统将自动找到父类的大小。另外，诸如析构函数（<code>instance_finalize</code>）也不一定需要重新定义。这些内容都根据实际设计选择即可。</p>
+<p>其中，<code>edu</code>设备的<code>TypeInfo</code>的定义是这样的：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-type">static</span> <span class="hljs-type">const</span> TypeInfo edu_info = &#123;<br>    .name          = TYPE_PCI_EDU_DEVICE,<br>    .parent        = TYPE_PCI_DEVICE,<br>    .instance_size = <span class="hljs-keyword">sizeof</span>(EduState),<br>    .instance_init = edu_instance_init,<br>    .class_init    = edu_class_init,<br>    .interfaces    = interfaces,<br>&#125;;<br></code></pre></td></tr></table></figure>
+<p>其中<code>TYPE_PCI_EDU_DEVICE</code>和<code>TYPE_PCI_DEVICE</code>是一个宏，展开后是每个设备专有的字符串，即设备名。</p>
+<h4 id="2-从TypeInfo到TypeImpl"><a href="#2-从TypeInfo到TypeImpl" class="headerlink" title="2. 从TypeInfo到TypeImpl"></a>2. 从<code>TypeInfo</code>到<code>TypeImpl</code></h4><p>定义好edu设备的<code>TypeInfo</code>之后，我们构造函数<code>pci_edu_register_types</code>，其中包含另一个函数<code>type_register_static</code>，从字面意义上可以理解，这个函数起到静态注册的作用。edu设备的最后调用了<code>type_init(pci_edu_register_types)</code>这样一个宏。至此，我们新设备层面的设计就结束了。</p>
+<p>接下来需要考虑的则是系统是如何注册我们的设备的。</p>
+<h5 id="2-1-ModuleEntry"><a href="#2-1-ModuleEntry" class="headerlink" title="2.1 ModuleEntry"></a>2.1 <code>ModuleEntry</code></h5><p>首先，<code>type_init(pci_edu_register_types)</code>这个宏进行展开会得到这样的一个<code>__attribute__((constructor))</code>的函数，能够在main函数之前运行。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-meta">#<span class="hljs-keyword">define</span> type_init(function) module_init(function, MODULE_INIT_QOM)</span><br><br><span class="hljs-meta">#<span class="hljs-keyword">define</span> module_init(function, type)                                         \</span><br><span class="hljs-meta">static void __attribute__((constructor)) do_qemu_init_ ## function(void)    \</span><br><span class="hljs-meta">&#123;                                                                           \</span><br><span class="hljs-meta">    register_module_init(function, type);                                   \</span><br><span class="hljs-meta">&#125;</span><br></code></pre></td></tr></table></figure>
+<p>这个宏对应调用了<code>register_module_init</code>：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-type">void</span> <span class="hljs-title function_">register_module_init</span><span class="hljs-params">(<span class="hljs-type">void</span> (*fn)(<span class="hljs-type">void</span>), module_init_type type)</span><br>&#123;<br>    ModuleEntry *e;<br>    ModuleTypeList *l;<br><br>    e = g_malloc0(<span class="hljs-keyword">sizeof</span>(*e));<br>    e-&gt;init = fn;<br>    e-&gt;type = type;<br><br>    l = find_type(type);<br><br>    QTAILQ_INSERT_TAIL(l, e, node);<br>&#125;<br></code></pre></td></tr></table></figure>
+<p>在<code>register_module_init</code>中可以看到，我们输入的函数<code>fn</code>被挂载到了新生成的<code>ModuleEntry</code>中，这里的<code>type</code>统一是<code>MODULE_INIT_QOM</code>。这个<code>MODULE_INIT_QOM</code>是什么呢？我们可以在<code>module.h</code>中找到答案：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-keyword">typedef</span> <span class="hljs-class"><span class="hljs-keyword">enum</span> &#123;</span><br>    MODULE_INIT_MIGRATION,<br>    MODULE_INIT_BLOCK,<br>    MODULE_INIT_OPTS,<br>    MODULE_INIT_QOM,		<span class="hljs-comment">/* type we use here */</span><br>    MODULE_INIT_TRACE,<br>    MODULE_INIT_XEN_BACKEND,<br>    MODULE_INIT_LIBQOS,<br>    MODULE_INIT_FUZZ_TARGET,<br>    MODULE_INIT_MAX<br>&#125; module_init_type;<br></code></pre></td></tr></table></figure>
+<p>可见这个<code>MODULE_INIT_QOM</code>就是module中内置的一个枚举类型，用来分辨所注册的module属于什么类型，这里注册的是设备，因此就是<code>MODULE_INIT_QOM</code>。</p>
+<p>在<code>register_module_init</code>中我们new出了一个<code>ModuleEntry</code>，将其挂在到一个队列中。</p>
+<p>在挂载edu设备的时候，就是将<code>pci_edu_register_types</code>传入对应的这些初始化函数生成<code>ModuleEntry</code>，然后插入链表，这个函数以<code>edu_info</code>为参数调用了 <code>type_register_static</code>类型注册函数，设备注册准备就绪。</p>
+<p>main函数开始运行，对应产生了这样一条调用链：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-comment">/* [main.c] --&gt; qemu_init() </span><br><span class="hljs-comment">    	 --&gt; [vl.c] --&gt; module_call_init()</span><br><span class="hljs-comment">    				--&gt; [module.c] --&gt; QTAILQ_FOREACH(e, l, node) &#123;</span><br><span class="hljs-comment">                                            e-&gt;init();</span><br><span class="hljs-comment">                                       &#125;</span><br><span class="hljs-comment">*/</span><br></code></pre></td></tr></table></figure>
+<p>这里存在一个foreach，取出系统中存在的全部<code>ModuleEntry</code>，调用其对应的<code>init</code>函数（对于edu设备，即<code>pci_edu_register_types</code>）。</p>
+<h5 id="2-2-TypeInfo到TypeImpl"><a href="#2-2-TypeInfo到TypeImpl" class="headerlink" title="2.2 TypeInfo到TypeImpl"></a>2.2 <code>TypeInfo</code>到<code>TypeImpl</code></h5><p>前面的foreach结构所调用的函数，即我们定义好的<code>pci_edu_register_types</code>函数，接下来存在这样一条调用链：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-comment">/* init() --&gt; type_register_static --&gt; type_register</span><br><span class="hljs-comment">										--&gt; type_register_internal --&gt; type_new [object.c]*/</span><br><span class="hljs-type">static</span> TypeImpl *<span class="hljs-title function_">type_register_internal</span><span class="hljs-params">(<span class="hljs-type">const</span> TypeInfo *info)</span> &#123;<br>    TypeImpl *ti;<br>    ti = type_new(info);<br><br>    type_table_add(ti);<br>    <span class="hljs-keyword">return</span> ti;<br>&#125;<br><br><span class="hljs-type">static</span> TypeImpl *<span class="hljs-title function_">type_new</span><span class="hljs-params">(<span class="hljs-type">const</span> TypeInfo *info)</span><br>&#123;<br>     *ti = g_malloc0(<span class="hljs-keyword">sizeof</span>(*ti));<br>    <span class="hljs-type">int</span> i;<br><br>    g_assert(info-&gt;name != <span class="hljs-literal">NULL</span>);<br><br>    <span class="hljs-keyword">if</span> (type_table_lookup(info-&gt;name) != <span class="hljs-literal">NULL</span>) &#123;<br>        <span class="hljs-built_in">fprintf</span>(<span class="hljs-built_in">stderr</span>, <span class="hljs-string">&quot;Registering `%s&#x27; which already exists\n&quot;</span>, info-&gt;name);<br>        <span class="hljs-built_in">abort</span>();<br>    &#125;<br><br>    ti-&gt;name = g_strdup(info-&gt;name);<br>    ti-&gt;parent = g_strdup(info-&gt;parent);<br><br>    ti-&gt;class_size = info-&gt;class_size;<br>    ti-&gt;instance_size = info-&gt;instance_size;<br><br>    ti-&gt;class_init = info-&gt;class_init;<br>    ti-&gt;class_base_init = info-&gt;class_base_init;<br>    ti-&gt;class_data = info-&gt;class_data;<br><br>    ti-&gt;instance_init = info-&gt;instance_init;<br>    ti-&gt;instance_post_init = info-&gt;instance_post_init;<br>    ti-&gt;instance_finalize = info-&gt;instance_finalize;<br><br>    ti-&gt;abstract = info-&gt;abstract;<br><br>    <span class="hljs-keyword">for</span> (i = <span class="hljs-number">0</span>; info-&gt;interfaces &amp;&amp; info-&gt;interfaces[i].type; i++) &#123;<br>        ti-&gt;interfaces[i].typename = g_strdup(info-&gt;interfaces[i].type);<br>    &#125;<br>    ti-&gt;num_interfaces = i;<br><br>    <span class="hljs-keyword">return</span> ti;<br>&#125;<br></code></pre></td></tr></table></figure>
+<p>很显然，在<code>type_new</code>中完成了<code>TypeImpl</code>的实体化。从初始化的过程来看，<code>TypeImpl</code>与<code>TypeInfo</code>是比较类似的，但是其还包含了一些专有的东西，这让我们得以利用<code>TypeImpl</code>实现对设备类型注册的完美管理。</p>
+<h4 id="3-TypeImpl"><a href="#3-TypeImpl" class="headerlink" title="3 TypeImpl"></a>3 TypeImpl</h4><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">TypeImpl</span></span><br><span class="hljs-class">&#123;</span><br>    <span class="hljs-type">const</span> <span class="hljs-type">char</span> *name;<br><br>    <span class="hljs-type">size_t</span> class_size;<br><br>    <span class="hljs-type">size_t</span> instance_size;<br><br>    <span class="hljs-type">void</span> (*class_init)(ObjectClass *klass, <span class="hljs-type">void</span> *data);<br>    <span class="hljs-type">void</span> (*class_base_init)(ObjectClass *klass, <span class="hljs-type">void</span> *data);<br><br>    <span class="hljs-type">void</span> *class_data;<br><br>    <span class="hljs-type">void</span> (*instance_init)(Object *obj);<br>    <span class="hljs-type">void</span> (*instance_post_init)(Object *obj);<br>    <span class="hljs-type">void</span> (*instance_finalize)(Object *obj);<br><br>    <span class="hljs-type">bool</span> abstract;<br><br>    <span class="hljs-type">const</span> <span class="hljs-type">char</span> *parent;<br>    TypeImpl *parent_type;<br><br>    ObjectClass *<span class="hljs-class"><span class="hljs-keyword">class</span>;</span><br><br>    <span class="hljs-type">int</span> num_interfaces;<br>    InterfaceImpl interfaces[MAX_INTERFACES];<br>&#125;;<br></code></pre></td></tr></table></figure>
+<p><code>TypeImpl</code>是QEMU用来管理设备对象的概念。在<code>TypeImpl</code>中包含了<code>TypeInfo</code>中的全部信息——设备<code>ObjectClass</code>的注册函数、<code>Object</code>的注册函数（<code>class_init</code>, <code>instance_init</code>）。除此之外，还包括一个<code>ObjectClass</code>的指针。可以看到的是，我们利用这些函数指针、属性信息来管理设备的注册过程，这个过程中<code>TypeImpl</code>对应的实体起到了关键作用。</p>
+<p>另外，显然的是，<code>TypeImpl</code>是对应设备的，也就是说，每一种<code>TypeImpl</code>在QEMU中有且仅有一份实体。</p>
+<h5 id="3-1-TypeImpl到ObjectClass"><a href="#3-1-TypeImpl到ObjectClass" class="headerlink" title="3.1 TypeImpl到ObjectClass"></a>3.1 <code>TypeImpl</code>到<code>ObjectClass</code></h5><p>接下来我们就看看设备对应的<code>ObjectClass</code>（即<code>PCIDeviceClass</code>）是如何注册出来的。</p>
+<p>在qemu_init主注册函数中，会进入这样的函数:</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-type">static</span> <span class="hljs-type">void</span> <span class="hljs-title function_">type_initialize</span><span class="hljs-params">(TypeImpl *ti)</span><br>&#123;<br>    TypeImpl *parent;<br><br>    <span class="hljs-comment">// if class doesn&#x27;t exit, do the initialization.</span><br>    <span class="hljs-keyword">if</span> (ti-&gt;class) &#123;<br>        <span class="hljs-keyword">return</span>;<br>    &#125;<br><br>    ti-&gt;class_size = type_class_get_size(ti);<br>    ti-&gt;instance_size = type_object_get_size(ti);<br>    <span class="hljs-comment">/* Any type with zero instance_size is implicitly abstract.</span><br><span class="hljs-comment">     * This means interface types are all abstract.</span><br><span class="hljs-comment">     */</span><br>    <span class="hljs-keyword">if</span> (ti-&gt;instance_size == <span class="hljs-number">0</span>) &#123;<br>        ti-&gt;abstract = <span class="hljs-literal">true</span>;<br>    &#125;<br>    <span class="hljs-keyword">if</span> (type_is_ancestor(ti, type_interface)) &#123;<br>        assert(ti-&gt;instance_size == <span class="hljs-number">0</span>);<br>        assert(ti-&gt;abstract);<br>        assert(!ti-&gt;instance_init);<br>        assert(!ti-&gt;instance_post_init);<br>        assert(!ti-&gt;instance_finalize);<br>        assert(!ti-&gt;num_interfaces);<br>    &#125;<br>    ti-&gt;<span class="hljs-class"><span class="hljs-keyword">class</span> =</span> g_malloc0(ti-&gt;class_size);  <span class="hljs-comment">/* --------------------&gt; instantiation: ObjectClass */</span><br>    <span class="hljs-comment">// pay attention that this is the instance of concrete ObjectClass (DerivedObjectClass)</span><br>    <span class="hljs-comment">// because it use the ti-&gt;class_size which is the real size of specific device&#x27;s ObjectClass</span><br><br>    parent = type_get_parent(ti);<br>    <span class="hljs-keyword">if</span> (parent) &#123; 						<span class="hljs-comment">// check wether this Typeimpl&#x27;s device have a parents</span><br>        								<span class="hljs-comment">// this process shows that `ObjectClass`&#x27;s instance will be created</span><br>        								<span class="hljs-comment">// because it is a recursive function call--+</span><br>        type_initialize(parent);		<span class="hljs-comment">// &lt;----------------------------------------|</span><br>        GSList *e;<br>        <span class="hljs-type">int</span> i;<br><br>        g_assert(parent-&gt;class_size &lt;= ti-&gt;class_size);<br>        g_assert(parent-&gt;instance_size &lt;= ti-&gt;instance_size);<br>        <span class="hljs-built_in">memcpy</span>(ti-&gt;class, parent-&gt;class, parent-&gt;class_size);<br>        ti-&gt;<span class="hljs-class"><span class="hljs-keyword">class</span>-&gt;</span>interfaces = <span class="hljs-literal">NULL</span>;<br>        ti-&gt;<span class="hljs-class"><span class="hljs-keyword">class</span>-&gt;</span>properties = g_hash_table_new_full(<br>            g_str_hash, g_str_equal, <span class="hljs-literal">NULL</span>, object_property_free);<br><br>        <span class="hljs-keyword">for</span> (e = parent-&gt;class-&gt;interfaces; e; e = e-&gt;next) &#123;<br>            InterfaceClass *iface = e-&gt;data;<br>            ObjectClass *klass = OBJECT_CLASS(iface);<br><br>            type_initialize_interface(ti, iface-&gt;interface_type, klass-&gt;type);<br>        &#125;<br><br>        <span class="hljs-keyword">for</span> (i = <span class="hljs-number">0</span>; i &lt; ti-&gt;num_interfaces; i++) &#123;<br>            TypeImpl *t = type_get_by_name(ti-&gt;interfaces[i].typename);<br>            <span class="hljs-keyword">if</span> (!t) &#123;<br>                error_report(<span class="hljs-string">&quot;missing interface &#x27;%s&#x27; for object &#x27;%s&#x27;&quot;</span>,<br>                             ti-&gt;interfaces[i].typename, parent-&gt;name);<br>                <span class="hljs-built_in">abort</span>();<br>            &#125;<br>            <span class="hljs-keyword">for</span> (e = ti-&gt;class-&gt;interfaces; e; e = e-&gt;next) &#123;<br>                TypeImpl *target_type = OBJECT_CLASS(e-&gt;data)-&gt;type;<br><br>                <span class="hljs-keyword">if</span> (type_is_ancestor(target_type, t)) &#123;<br>                    <span class="hljs-keyword">break</span>;<br>                &#125;<br>            &#125;<br><br>            <span class="hljs-keyword">if</span> (e) &#123;<br>                <span class="hljs-keyword">continue</span>;<br>            &#125;<br><br>            type_initialize_interface(ti, t, t); <br>        &#125;<br>    &#125; <span class="hljs-keyword">else</span> &#123;<br>        ti-&gt;class-&gt;properties = g_hash_table_new_full(<br>            g_str_hash, g_str_equal, <span class="hljs-literal">NULL</span>, object_property_free);<br>    &#125;<br><br>    ti-&gt;<span class="hljs-class"><span class="hljs-keyword">class</span>-&gt;</span>type = ti;<br><br>    <span class="hljs-keyword">while</span> (parent) &#123;<br>        <span class="hljs-keyword">if</span> (parent-&gt;class_base_init) &#123;<br>            parent-&gt;class_base_init(ti-&gt;class, ti-&gt;class_data);<br>        &#125;<br>        parent = type_get_parent(parent);<br>    &#125;<br><br>    <span class="hljs-keyword">if</span> (ti-&gt;class_init) &#123;<br>        ti-&gt;class_init(ti-&gt;class, ti-&gt;class_data);	<span class="hljs-comment">// call TypeImpl&#x27;s class_init</span><br>    &#125;<br>&#125;<br></code></pre></td></tr></table></figure>
+<p>可以看到，这个函数负责生成了<code>ObjectClass</code>的实体，这个实体即保存在<code>TypeImpl</code>中。在生成实体的时候，申请的内存空间是<code>ti-&gt;class_size</code>，这个细节告诉我们，这里保存的类型是<code>ObjectClass</code>，但是实际上对应的是一个子<code>ObjectClass</code>，这就是QEMU中多态的体现。最后调用了<code>ti-&gt;class_init</code>，即对应的是C++中的构造函数，将这样的一个子<code>ObjectClass</code>进行完善的初始化。</p>
+<h5 id="3-2-TypeImpl到Object"><a href="#3-2-TypeImpl到Object" class="headerlink" title="3.2 TypeImpl到Object"></a>3.2 <code>TypeImpl</code>到<code>Object</code></h5><p><code>Object</code>生成相对来说会略显复杂一些，因为不管实际使用与否，我们设备的<code>ObjectClass</code>是一定需要生成的，而<code>Object</code>则不一定。</p>
+<p>在<code>qemu_init()</code>中存在一部分代码负责激活设备对象，而这个激活过程需要首先对QEMU启动命令行参数相关，QEMU中有专门的Python脚本负责处理这部分的内容。假设我们在命令行中输入<code>-device edu</code>，这样的一条命令就会被转换成下面代码的一个注册过程。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-comment">/* init generic devices (vl.c, qemu_init())*/</span><br>    rom_set_order_override(FW_CFG_ORDER_OVERRIDE_DEVICE);<br>    qemu_opts_foreach(qemu_find_opts(<span class="hljs-string">&quot;device&quot;</span>),<br>                      device_init_func, <span class="hljs-literal">NULL</span>, &amp;error_fatal);<br><br><br><span class="hljs-comment">// qemu_opts_foreach --&gt; device_init_finc --&gt; qdev_device_add</span><br>DeviceState *<span class="hljs-title function_">qdev_device_add</span><span class="hljs-params">(QemuOpts *opts, Error **errp)</span><br>&#123;<br>    DeviceClass *dc;			<span class="hljs-comment">// ObjectClass</span><br>    <span class="hljs-type">const</span> <span class="hljs-type">char</span> *driver, *path;<br>    DeviceState *dev = <span class="hljs-literal">NULL</span>;	<span class="hljs-comment">// Object</span><br>    BusState *bus = <span class="hljs-literal">NULL</span>;<br>    Error *err = <span class="hljs-literal">NULL</span>;<br>    <span class="hljs-type">bool</span> hide;<br><br>    <span class="hljs-comment">// ...</span><br><br>    <span class="hljs-comment">/* find driver */</span><br>    dc = qdev_get_device_class(&amp;driver, errp);		<span class="hljs-comment">// actually find the ObjectClass, which is instance</span><br>    <span class="hljs-keyword">if</span> (!dc) &#123;<br>        <span class="hljs-keyword">return</span> <span class="hljs-literal">NULL</span>;<br>    &#125;<br><br>   <span class="hljs-comment">// ...</span><br><br>    <span class="hljs-comment">/* create device */</span><br>    dev = DEVICE(object_new(driver)); <span class="hljs-comment">/* --------------------&gt; instantiation: Object */</span><br>    								  <span class="hljs-comment">// &lt;from ObjectClass to Object&gt;</span><br><br>   <br>    <span class="hljs-comment">// ...</span><br><br>    <span class="hljs-comment">/* set properties */</span><br>   	<span class="hljs-comment">// ...</span><br>&#125;<br></code></pre></td></tr></table></figure>
+<p>这里略去的其余部分的代码，我们专注于<code>object_new</code>的调用，这个函数即为我们想知道的<code>Object</code>的注册调用链的入口。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-comment">/* object_new --&gt; object_new_with_class --&gt; object_new_with_type --&gt; object_initialize_with_type</span><br><span class="hljs-comment">	--&gt; object_init_with_type</span><br><span class="hljs-comment">*/</span><br><br>Object *<span class="hljs-title function_">object_new</span><span class="hljs-params">(<span class="hljs-type">const</span> <span class="hljs-type">char</span> *typename)</span><br>&#123;<br>    TypeImpl *ti = type_get_by_name(typename);<br><br>    <span class="hljs-keyword">return</span> object_new_with_type(ti);<br>&#125;<br><br><span class="hljs-type">static</span> Object *<span class="hljs-title function_">object_new_with_type</span><span class="hljs-params">(Type type)</span> &#123; 	<span class="hljs-comment">// `Type` is `TypeImpl*`</span><br>    Object *obj;<br><br>    g_assert(type != <span class="hljs-literal">NULL</span>);<br>    type_initialize(type);<br><br>    obj = g_malloc(type-&gt;instance_size);   <span class="hljs-comment">/* --------------------&gt; instantiation: Object */</span><br>    object_initialize_with_type(obj, type-&gt;instance_size, type);<br>    obj-&gt;<span class="hljs-built_in">free</span> = g_free;<br><br>    <span class="hljs-keyword">return</span> obj;<br>&#125;<br><br><span class="hljs-type">static</span> <span class="hljs-type">void</span> <span class="hljs-title function_">object_initialize_with_type</span><span class="hljs-params">(<span class="hljs-type">void</span> *data, <span class="hljs-type">size_t</span> size, TypeImpl *type)</span> &#123;<br>    Object *obj = data;<br><br>    type_initialize(type);<br><br>    g_assert(type-&gt;instance_size &gt;= <span class="hljs-keyword">sizeof</span>(Object));<br>    g_assert(type-&gt;abstract == <span class="hljs-literal">false</span>);<br>    g_assert(size &gt;= type-&gt;instance_size);<br><br>    <span class="hljs-built_in">memset</span>(obj, <span class="hljs-number">0</span>, type-&gt;instance_size);<br>    obj-&gt;<span class="hljs-class"><span class="hljs-keyword">class</span> =</span> type-&gt;<span class="hljs-class"><span class="hljs-keyword">class</span>;</span><br>    object_ref(obj);<br>    object_class_property_init_all(obj);<br>    obj-&gt;properties = g_hash_table_new_full(g_str_hash, g_str_equal,<br>                                            <span class="hljs-literal">NULL</span>, object_property_free);<br>    object_init_with_type(obj, type);	<span class="hljs-comment">// -------------&gt; instance_init</span><br>    object_post_init_with_type(obj, type);<br>&#125;<br></code></pre></td></tr></table></figure>
+<p>可以发现，这里直接利用设备名(<code>const char *typename</code>)找到了对应的<code>TypeImpl</code>，此后就是与此前生成<code>ObjectClass</code>实体一样的过程了。首先申请一块子<code>Object</code>的空间（借助<code>instance_size</code>），然后调用instance相关的注册函数（即构造函数）初始化。</p>
+<p>这里值得一提的是，QEMU的层次结构保证了我们实体化子对象的时候，父对象的实体必须已经生成了，这样就可以保证像edu设备没有实现<code>PCIDeviceClass</code>的子<code>ObjectClass</code>，但仍然能够得到正确的<code>class_size</code>以及其对应的全部<code>class_init</code>类构造函数。</p>
+<h5 id="3-3-Interface"><a href="#3-3-Interface" class="headerlink" title="3.3 Interface"></a>3.3 <code>Interface</code></h5><p>最后我们聊聊前面忽略的<code>Interface</code>。</p>
+<p><code>Interface</code>顾名思义，就是接口。接口就是为了完善面向对象机制而生的。接口在QEMU中存在三种结构体：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-comment">// 值得注意的是，文档中这样描述`InterfaceClass`:</span><br><span class="hljs-comment">// Subclasses of this class should only add virtual methods.</span><br><span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">InterfaceClass</span> &#123;</span><br>    ObjectClass parent_class;<br>    <span class="hljs-comment">/*&lt; private &gt;*/</span><br>    ObjectClass *concrete_class;<br>    Type interface_type;		<span class="hljs-comment">// type is `TypeImpl*`</span><br>&#125;;<br><br><span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">InterfaceInfo</span> &#123;</span><br>    <span class="hljs-type">const</span> <span class="hljs-type">char</span> *type;<br>&#125;;<br><br><span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">InterfaceImpl</span> &#123;</span><br>    <span class="hljs-type">const</span> TypeImplchar *typename;<br>&#125;;<br></code></pre></td></tr></table></figure>
+<p>这样看来我们会发现，其实<code>InterfaceClass</code>与普通的<code>ObjectClass</code>的区别就在于文档中的描述——接口只能有虚函数。<code>InterfaceImpl</code>保存在对应设备的<code>TypeImpl</code>中，实际上仅仅是保存了一个字符串（即接口名）。前面提到，我们可以通过设备名字查到唯一的<code>TypeImpl</code>，这里也是同理，可以查到唯一的<code>InterfaceImpl</code>，这个<code>TypeImpl</code>能够对应到我们需要的<code>InterfaceClass</code>。</p>
+<h3 id="三、Property"><a href="#三、Property" class="headerlink" title="三、Property"></a>三、Property</h3><p>Property是设备的属性，这样的属性分属两份，一份是<code>ObjectClass</code>的，而另一份是<code>Object</code>的。全局存在一张表，分别存储在基<code>ObjectClass</code>和基<code>Object</code>中。这张表是一个哈希表，key是属性名，value则是一个属性的结构体。这样子<code>ObjectClass</code>和子<code>Object</code>仅保存属性名，便可以在表中查找到需要的属性。</p>
+<p>那么问题在于，这样的属性和我们在<code>EduState</code>的对象结构体中写入的属性有什么区别呢？</p>
+<p>我们在<code>EduState</code>这样的设备中写入的属性其实是硬编码的，也就是说，设备对象一旦生成，便不可以进行任何修改。这就好比焊死在主板上的配件，没有常规方法可以将其取出。而Property是可以修改的，例如edu设备中的<code>dma_mask</code>，这是可以根据我们实际使用的过程中进行配置的。</p>
+<p>此外，属于<code>ObjectClass</code>的property就好似非常通用的属性，而<code>Object</code>中的则是单独一个设备专属的属性。</p>
+<p>最后，<code>Property</code>结构体包含了非常多的内容，除了属性本身，还有属性的一些操作函数，例如<code>setter</code>和<code>getter</code>，<code>setter</code>可以修改属性，<code>getter</code>可以获得属性的内容。</p>
+<h3 id="四、结语"><a href="#四、结语" class="headerlink" title="四、结语"></a>四、结语</h3><p>至此，我们的新设备就得到了完整的注册，在QEMU中生成了真正的设备实体了，在运行起来的操作系统中就可以看到设备的信息了。当然了，要设计复杂的设备，还需要对设备自身特殊的属性、操作做更多深度的定制。这已经超出了本文探讨的话题了，因此本文的讨论再次就结束了。</p>
+
+            </div>
+            <hr>
+            <div>
+              <div class="post-metas mb-3">
+                
+                
+                  <div class="post-meta">
+                    <i class="iconfont icon-tags"></i>
+                    
+                      <a class="hover-with-bg" href="/tags/qemu/">qemu</a>
+                    
+                  </div>
+                
+              </div>
+              
+                <p class="note note-warning">
+                  
+                    本博客所有文章除特别声明外，均采用 <a target="_blank" href="https://creativecommons.org/licenses/by-sa/4.0/deed.zh" rel="nofollow noopener noopener">CC BY-SA 4.0 协议</a> ，转载请注明出处！
+                  
+                </p>
+              
+              
+                <div class="post-prevnext">
+                  <article class="post-prev col-6">
+                    
+                    
+                      <a href="/2021/07/10/QemuThreads/">
+                        <i class="iconfont icon-arrowleft"></i>
+                        <span class="hidden-mobile">Qemu Threads</span>
+                        <span class="visible-mobile">上一篇</span>
+                      </a>
+                    
+                  </article>
+                  <article class="post-next col-6">
+                    
+                    
+                      <a href="/2021/06/18/QEMU%E6%A6%82%E5%BF%B5%E5%92%8C%E5%AE%9E%E4%BD%93%E7%9A%84%E5%85%B7%E4%BD%93%E5%88%86%E6%9E%90/">
+                        <span class="hidden-mobile">QEMU概念和实体的具体分析</span>
+                        <span class="visible-mobile">下一篇</span>
+                        <i class="iconfont icon-arrowright"></i>
+                      </a>
+                    
+                  </article>
+                </div>
+              
+            </div>
+
+            
+          </article>
+        </div>
+      </div>
+    </div>
+    
+      <div class="d-none d-lg-block col-lg-2 toc-container" id="toc-ctn">
+        <div id="toc">
+  <p class="toc-header"><i class="iconfont icon-list"></i>&nbsp;目录</p>
+  <div class="toc-body" id="toc-body"></div>
+</div>
+
+      </div>
+    
+  </div>
+</div>
+
+<!-- Custom -->
+
+
+    
+
+    
+      <a id="scroll-top-button" aria-label="TOP" href="#" role="button">
+        <i class="iconfont icon-arrowup" aria-hidden="true"></i>
+      </a>
+    
+
+    
+      <div class="modal fade" id="modalSearch" tabindex="-1" role="dialog" aria-labelledby="ModalLabel"
+     aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header text-center">
+        <h4 class="modal-title w-100 font-weight-bold">搜索</h4>
+        <button type="button" id="local-search-close" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body mx-3">
+        <div class="md-form mb-5">
+          <input type="text" id="local-search-input" class="form-control validate">
+          <label data-error="x" data-success="v"
+                 for="local-search-input">关键词</label>
+        </div>
+        <div class="list-group" id="local-search-result"></div>
+      </div>
+    </div>
+  </div>
+</div>
+    
+
+    
+  </main>
+
+  <footer class="text-center mt-5 py-3">
+  <div class="footer-content">
+     <a href="https://hexo.io" target="_blank" rel="nofollow noopener"><span>Hexo</span></a> <i class="iconfont icon-love"></i> <a href="https://github.com/fluid-dev/hexo-theme-fluid" target="_blank" rel="nofollow noopener"><span>Fluid</span></a> 
+  </div>
+  
+
+  
+
+  
+</footer>
+
+
+  <!-- SCRIPTS -->
+  
+  <script  src="https://cdn.jsdelivr.net/npm/nprogress@0/nprogress.min.js" ></script>
+  <link  rel="stylesheet" href="https://cdn.jsdelivr.net/npm/nprogress@0/nprogress.min.css" />
+
+  <script>
+    NProgress.configure({"showSpinner":false,"trickleSpeed":100})
+    NProgress.start()
+    window.addEventListener('load', function() {
+      NProgress.done();
+    })
+  </script>
+
+
+<script  src="https://cdn.jsdelivr.net/npm/jquery@3/dist/jquery.min.js" ></script>
+<script  src="https://cdn.jsdelivr.net/npm/bootstrap@4/dist/js/bootstrap.min.js" ></script>
+<script  src="/js/events.js" ></script>
+<script  src="/js/plugins.js" ></script>
+
+<!-- Plugins -->
+
+
+  <script  src="/js/local-search.js" ></script>
+
+
+
+  
+    <script  src="/js/img-lazyload.js" ></script>
+  
+
+
+
+  
+
+
+
+  
+    <script  src="https://cdn.jsdelivr.net/npm/tocbot@4/dist/tocbot.min.js" ></script>
+  
+  
+    <script  src="https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@3/dist/jquery.fancybox.min.js" ></script>
+  
+  
+    <script  src="https://cdn.jsdelivr.net/npm/anchor-js@4/anchor.min.js" ></script>
+  
+  
+    <script defer src="https://cdn.jsdelivr.net/npm/clipboard@2/dist/clipboard.min.js" ></script>
+  
+
+
+
+
+
+
+  <script  src="https://cdn.jsdelivr.net/npm/typed.js@2/lib/typed.min.js" ></script>
+  <script>
+    (function (window, document) {
+      var typing = Fluid.plugins.typing;
+      var title = document.getElementById('subtitle').title;
+      
+        typing(title);
+      
+    })(window, document);
+  </script>
+
+
+
+
+
+  
+
+  
+    <!-- MathJax -->
+    <script>
+      MathJax = {
+        tex: {
+          inlineMath: [['$', '$'], ['\\(', '\\)']]
+        },
+        loader: {
+          load: ['ui/lazy']
+        },
+        options: {
+          renderActions: {
+            findScript: [10, doc => {
+              document.querySelectorAll('script[type^="math/tex"]').forEach(node => {
+                const display = !!node.type.match(/; *mode=display/);
+                const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display);
+                const text = document.createTextNode('');
+                node.parentNode.replaceChild(text, node);
+                math.start = { node: text, delim: '', n: 0 };
+                math.end = { node: text, delim: '', n: 0 };
+                doc.math.push(math);
+              });
+            }, '', false],
+            insertedScript: [200, () => {
+              document.querySelectorAll('mjx-container').forEach(node => {
+                let target = node.parentNode;
+                if (target.nodeName.toLowerCase() === 'li') {
+                  target.parentNode.classList.add('has-jax');
+                }
+              });
+            }, '', false]
+          }
+        }
+      };
+    </script>
+
+    <script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js" ></script>
+
+  
+
+
+
+
+
+
+
+
+
+
+
+<!-- 主题的启动项 保持在最底部 -->
+<script  src="/js/boot.js" ></script>
+
+
+</body>
+</html>
