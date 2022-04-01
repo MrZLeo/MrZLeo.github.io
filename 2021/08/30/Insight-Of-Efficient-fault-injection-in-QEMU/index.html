@@ -18,20 +18,20 @@
   <meta name="author" content="Zhang Jing">
   <meta name="keywords" content="">
   
-    <meta name="description" content="Ferraretto D, Pravadelli G. Efficient fault injection in QEMU[C]&#x2F;&#x2F;2015 16th Latin-American Test Symposium (LATS). IEEE, 2015: 1-6.这篇文章是关于论文《Efficient fault injection in QEMU》的阅读总结和思考，文章的作者是">
+    <meta name="description" content="Ferraretto D, Pravadelli G. Efficient fault injection in QEMU[C]&#x2F;&#x2F;2015 16th Latin-American Test Symposium (LATS). IEEE, 2015: 1-6.这篇文章是关于论文《Efficient fault injection in QEMU》的阅读总结和思考，文章的作者是Davide Fer">
 <meta property="og:type" content="article">
 <meta property="og:title" content="Insight Of &#39;Efficient fault injection in QEMU&#39;">
 <meta property="og:url" content="https://mrzleo.github.io/2021/08/30/Insight-Of-Efficient-fault-injection-in-QEMU/index.html">
 <meta property="og:site_name" content="Technical Blog">
-<meta property="og:description" content="Ferraretto D, Pravadelli G. Efficient fault injection in QEMU[C]&#x2F;&#x2F;2015 16th Latin-American Test Symposium (LATS). IEEE, 2015: 1-6.这篇文章是关于论文《Efficient fault injection in QEMU》的阅读总结和思考，文章的作者是">
+<meta property="og:description" content="Ferraretto D, Pravadelli G. Efficient fault injection in QEMU[C]&#x2F;&#x2F;2015 16th Latin-American Test Symposium (LATS). IEEE, 2015: 1-6.这篇文章是关于论文《Efficient fault injection in QEMU》的阅读总结和思考，文章的作者是Davide Fer">
 <meta property="og:locale" content="zh_CN">
 <meta property="og:image" content="https://raw.githubusercontent.com/MrZLeo/Image/main/uPic/2021/09/10/image-20210904153648310.png">
 <meta property="og:image" content="https://raw.githubusercontent.com/MrZLeo/Image/main/uPic/2021/09/10/image-20210904155142309.png">
 <meta property="article:published_time" content="2021-08-30T14:16:42.000Z">
-<meta property="article:modified_time" content="2022-03-27T05:19:55.581Z">
+<meta property="article:modified_time" content="2022-04-01T11:15:49.533Z">
 <meta property="article:author" content="Zhang Jing">
-<meta property="article:tag" content="QEMU">
 <meta property="article:tag" content="Reads-Paper">
+<meta property="article:tag" content="qemu">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:image" content="https://raw.githubusercontent.com/MrZLeo/Image/main/uPic/2021/09/10/image-20210904153648310.png">
   
@@ -245,7 +245,7 @@
             
             <div class="markdown-body">
               <blockquote>
-<h1 id="Ferraretto-D-Pravadelli-G-Efficient-fault-injection-in-QEMU-C-x2F-x2F-2015-16th-Latin-American-Test-Symposium-LATS-IEEE-2015-1-6"><a href="#Ferraretto-D-Pravadelli-G-Efficient-fault-injection-in-QEMU-C-x2F-x2F-2015-16th-Latin-American-Test-Symposium-LATS-IEEE-2015-1-6" class="headerlink" title="Ferraretto D, Pravadelli G. Efficient fault injection in QEMU[C]&#x2F;&#x2F;2015 16th Latin-American Test Symposium (LATS). IEEE, 2015: 1-6."></a>Ferraretto D, Pravadelli G. Efficient fault injection in QEMU[C]&#x2F;&#x2F;2015 16th Latin-American Test Symposium (LATS). IEEE, 2015: 1-6.</h1><p>这篇文章是关于论文《Efficient fault injection in QEMU》的阅读总结和思考，文章的作者是Davide Ferraretto。</p>
+<h1 id="Ferraretto-D-Pravadelli-G-Efficient-fault-injection-in-QEMU-C-2015-16th-Latin-American-Test-Symposium-LATS-IEEE-2015-1-6"><a href="#Ferraretto-D-Pravadelli-G-Efficient-fault-injection-in-QEMU-C-2015-16th-Latin-American-Test-Symposium-LATS-IEEE-2015-1-6" class="headerlink" title="Ferraretto D, Pravadelli G. Efficient fault injection in QEMU[C]//2015 16th Latin-American Test Symposium (LATS). IEEE, 2015: 1-6."></a>Ferraretto D, Pravadelli G. Efficient fault injection in QEMU[C]//2015 16th Latin-American Test Symposium (LATS). IEEE, 2015: 1-6.</h1><p>这篇文章是关于论文《Efficient fault injection in QEMU》的阅读总结和思考，文章的作者是Davide Ferraretto。</p>
 </blockquote>
 <h2 id="1-问题背景"><a href="#1-问题背景" class="headerlink" title="1. 问题背景"></a>1. 问题背景</h2><p>在软件渗透入生活各个角落的今天，软件的健壮性和安全性逐渐成为开发人员关注的重点。然而，随着软件开发的深入，软件结构变得越来越复杂。同时，硬件的密度也不断增长。在这种情况下，即便我们采取了各种测试和验证技术来确保软件系统的正确性，想要开发出一款完美无缺的系统仍然是难上加难甚至不可能的。因此，软件可靠性和容错性的分析是越来越重要的工作。</p>
 <h2 id="2-针对的核心问题"><a href="#2-针对的核心问题" class="headerlink" title="2. 针对的核心问题"></a>2. 针对的核心问题</h2><p>关于软件可靠性和容错性的分析，故障注入是一个观察故障发生时系统如何、怎样做出反应的一个好办法。</p>
@@ -275,10 +275,8 @@
 <h3 id="4-3-故障注入的实现"><a href="#4-3-故障注入的实现" class="headerlink" title="4.3 故障注入的实现"></a>4.3 故障注入的实现</h3><h4 id="4-3-1-永久性故障（permanent-fault）注入"><a href="#4-3-1-永久性故障（permanent-fault）注入" class="headerlink" title="4.3.1 永久性故障（permanent fault）注入"></a>4.3.1 永久性故障（permanent fault）注入</h4><p>永久性故障发生后会一直存在，直到故障被修复。作者选择了两种代表性的永久性故障：<strong>stuck-at fault</strong>、<strong>transition fault</strong>。其中，<em>stuck-at 0 fault</em>指某个位保持逻辑0；<em>stuck-at 1 fault</em>指某个位保持逻辑1。<em>Transition fault</em>指0–&gt;1和1–&gt;0的翻转时，由于某种原因导致了较长的延时，从而产生了错误的值。</p>
 <h5 id="4-3-1-1-stuck-at-fault"><a href="#4-3-1-1-stuck-at-fault" class="headerlink" title="4.3.1.1 stuck-at fault"></a>4.3.1.1 stuck-at fault</h5><p>Stuck-at 0 fault的实现基于mask。对于arm架构而言，只需要在执行前对其寄存器进行一次位运算：</p>
 <figure class="highlight c"><table><tr><td class="gutter"><div class="code-wrapper"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></div></td><td class="code"><pre><code class="hljs c"><span class="hljs-comment">/* Use of a mask to inject stuck-at 0 faults in register number i of the target CPU. */</span><br>env-&gt;regs[i] &amp;= mask_regerr[i].stuck_at_0;<br><br><span class="hljs-comment">/* Use of a mask to inject stuck-at 1 faults in register number i of the target CPU. */</span><br>env-&gt;regs[i] |= mask_regerr[i].stuck_at_1;<br></code></pre></td></tr></table></figure>
-
 <p>在fetch阶段对IR做位运算：</p>
 <figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-comment">/* Use of a mask to inject stuck-at 0 faults in the fetched instruction. */</span><br>insn = arm_ldl_code(env, s-&gt;pc, s-&gt;bswap_code);<br>insn &amp;= mask_inserr_arm_stuck_at_0;<br>s-&gt;pc += <span class="hljs-number">4</span>;<br><br><span class="hljs-comment">/* Use of a mask to inject stuck-at 1 faults in the fetched instruction. */</span><br>insn = arm_ldl_code(env, s-&gt;pc, s-&gt;bswap_code);<br>insn |= mask_inserr_arm_stuck_at_1;<br>s-&gt;pc += <span class="hljs-number">4</span>;<br></code></pre></td></tr></table></figure>
-
 <p>对于x86架构来说，IR的故障注入有所不同。主要的原因是x86指令不定长，从而不像arm一样有一个IR的完整取出后处理的过程，而是获取IR后直接执行。为了解决这个问题，作者提出8-bit的mask设计，边取指令边使用mask处理。同时，因为IR的错误会导致下一条指令无法定位，作者设计了一个简单的方法来获取下一条地址的位置。在qemu中的执行函数原本不返回任何信息，在修改之后，能够返回下一条指令的地址，这样就可以避免因为一个错误而影响到下一条指令的情况。</p>
 <h5 id="4-3-1-2-Transition-fault"><a href="#4-3-1-2-Transition-fault" class="headerlink" title="4.3.1.2 Transition fault"></a>4.3.1.2 Transition fault</h5><p>Transition fault的实现相对来说略复杂一些，作者实现了一个新的mask。其中有一个变量<code>delay_counter</code>负责延时：</p>
 <ul>
@@ -288,17 +286,12 @@
 </ul>
 <h4 id="4-3-2-间歇性和短暂性故障"><a href="#4-3-2-间歇性和短暂性故障" class="headerlink" title="4.3.2 间歇性和短暂性故障"></a>4.3.2 间歇性和短暂性故障</h4><p>作者对这一部分的故障采用bit flip来实现。对于每一位是否翻转，这里采用了一个概率值的方式进行处理，作者将其存储在向量<code>p_reg_err</code>中。值得一提的是，如果将这个错误的代码块存储在缓存中，能够使其转换用永久性故障。</p>
 <h2 id="5-实验及其结果"><a href="#5-实验及其结果" class="headerlink" title="5. 实验及其结果"></a>5. 实验及其结果</h2><p>本文采用了三个基准测试：<em>btree</em>、<em>mandelbrot</em>、<em>dhrystone</em>。其中，<em>btree</em>申请和释放许多二叉树，<em>mandelbrot</em>生成一个Mandelbrot set，而<em>dhrystone</em>则是跟整数编程的代表性合成程序。作者收集了数据并将其做成了表格：</p>
-<img src="https://raw.githubusercontent.com/MrZLeo/Image/main/uPic/2021/09/10/image-20210904153648310.png" srcset="/img/loading.gif" lazyload alt="image-20210904153648310" style="zoom:50%;" />
-
-<img src="https://raw.githubusercontent.com/MrZLeo/Image/main/uPic/2021/09/10/image-20210904155142309.png" srcset="/img/loading.gif" lazyload alt="image-20210904155142309" style="zoom:50%;" />
-
+<p><img src="https://raw.githubusercontent.com/MrZLeo/Image/main/uPic/2021/09/10/image-20210904153648310.png" srcset="/img/loading.gif" lazyload alt="image-20210904153648310" style="zoom:50%;" /></p>
+<p><img src="https://raw.githubusercontent.com/MrZLeo/Image/main/uPic/2021/09/10/image-20210904155142309.png" srcset="/img/loading.gif" lazyload alt="image-20210904155142309" style="zoom:50%;" /></p>
 <ul>
-<li><p>第一个表格展示了可以生成的故障的个数</p>
-</li>
-<li><p>第二个表格表示的是x86和arm架构中CPU寄存器的区别</p>
-</li>
-<li><p>第三个表格是在不同基准测试下生成的故障的个数，可以看到arm有可能的可产生故障的寄存器，生成的故障也比x86要多</p>
-</li>
+<li>第一个表格展示了可以生成的故障的个数</li>
+<li>第二个表格表示的是x86和arm架构中CPU寄存器的区别</li>
+<li>第三个表格是在不同基准测试下生成的故障的个数，可以看到arm有可能的可产生故障的寄存器，生成的故障也比x86要多</li>
 <li><p>第四个表格是性能测试，对比在是否插入故障的情况下，基准测试运行的速度。鉴于故障注入的数量，可以看到这样的性能完全是可以接受的。</p>
 </li>
 <li><p>第五、六个表格展示的是故障在两个指令集下产生的效果。loop表示程序死循环，error表示程序生成了错误的结果，safe表示程序输出正常，crash表示程序崩溃。如作者预料的那样，崩溃时最常见的结果。</p>
@@ -314,9 +307,9 @@
                   <div class="post-meta">
                     <i class="iconfont icon-tags"></i>
                     
-                      <a class="hover-with-bg" href="/tags/QEMU/">QEMU</a>
-                    
                       <a class="hover-with-bg" href="/tags/Reads-Paper/">Reads-Paper</a>
+                    
+                      <a class="hover-with-bg" href="/tags/qemu/">qemu</a>
                     
                   </div>
                 
