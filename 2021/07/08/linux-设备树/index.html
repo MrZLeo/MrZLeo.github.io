@@ -1,0 +1,680 @@
+
+
+<!DOCTYPE html>
+<html lang="zh-CN" data-default-color-scheme=auto>
+
+
+
+<head>
+  <meta charset="UTF-8">
+  <link rel="apple-touch-icon" sizes="76x76" href="/img/favicon.png">
+  <link rel="icon" href="/img/favicon.png">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, shrink-to-fit=no">
+  <meta http-equiv="x-ua-compatible" content="ie=edge">
+  
+    <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
+  
+  <meta name="theme-color" content="#2f4154">
+  <meta name="author" content="Zhang Jing">
+  <meta name="keywords" content="">
+  
+    <meta name="description" content="Qemu Device Tree1. 设备树的概念设备树是描述计算机的特定硬件设备信息的数据结构，以便操作系统内核可以方便的管理和使用这些硬件，包括CPU、内存、PCIe总线和其他一些外设。嵌入式设备的引导过程中，通常使用设备树来传递无法被自动探测的板级硬件信息。 2. 设备树的文件2.1 文件之间的关系设备树文件的源文件是后缀为.dts（Device Tree Source）文件，每一款单独的硬">
+<meta property="og:type" content="article">
+<meta property="og:title" content="linux 设备树">
+<meta property="og:url" content="https://mrzleo.github.io/2021/07/08/linux-%E8%AE%BE%E5%A4%87%E6%A0%91/index.html">
+<meta property="og:site_name" content="Technical Blog">
+<meta property="og:description" content="Qemu Device Tree1. 设备树的概念设备树是描述计算机的特定硬件设备信息的数据结构，以便操作系统内核可以方便的管理和使用这些硬件，包括CPU、内存、PCIe总线和其他一些外设。嵌入式设备的引导过程中，通常使用设备树来传递无法被自动探测的板级硬件信息。 2. 设备树的文件2.1 文件之间的关系设备树文件的源文件是后缀为.dts（Device Tree Source）文件，每一款单独的硬">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://i.loli.net/2021/07/12/2gkxLPnRBZh7sDq.png">
+<meta property="article:published_time" content="2021-07-07T16:00:00.000Z">
+<meta property="article:modified_time" content="2022-04-18T07:59:20.279Z">
+<meta property="article:author" content="Zhang Jing">
+<meta property="article:tag" content="QEMU">
+<meta property="article:tag" content="device tree">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://i.loli.net/2021/07/12/2gkxLPnRBZh7sDq.png">
+  
+  
+  <title>linux 设备树 - Technical Blog</title>
+
+  <link  rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4/dist/css/bootstrap.min.css" />
+
+
+  <link  rel="stylesheet" href="https://cdn.jsdelivr.net/npm/github-markdown-css@4/github-markdown.min.css" />
+  <link  rel="stylesheet" href="https://cdn.jsdelivr.net/npm/hint.css@2/e/hint.min.css" />
+
+  
+    
+    
+      
+      <link  rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@10/styles/github-gist.min.css" />
+    
+  
+
+  
+    <link  rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@3/dist/jquery.fancybox.min.css" />
+  
+
+
+<!-- 主题依赖的图标库，不要自行修改 -->
+
+<link rel="stylesheet" href="//at.alicdn.com/t/font_1749284_ba1fz6golrf.css">
+
+
+
+<link rel="stylesheet" href="//at.alicdn.com/t/font_1736178_lbnruvf0jn.css">
+
+
+<link  rel="stylesheet" href="/css/main.css" />
+
+<!-- 自定义样式保持在最底部 -->
+
+
+  <script id="fluid-configs">
+    var Fluid = window.Fluid || {};
+    var CONFIG = {"hostname":"mrzleo.github.io","root":"/","version":"1.8.14","typing":{"enable":true,"typeSpeed":70,"cursorChar":"_","loop":false},"anchorjs":{"enable":true,"element":"h1,h2,h3,h4,h5,h6","placement":"right","visible":"hover","icon":""},"progressbar":{"enable":true,"height_px":3,"color":"#29d","options":{"showSpinner":false,"trickleSpeed":100}},"copy_btn":true,"image_zoom":{"enable":true,"img_url_replace":["",""]},"toc":{"enable":true,"headingSelector":"h1,h2,h3,h4,h5,h6","collapseDepth":0},"lazyload":{"enable":true,"loading_img":"/img/loading.gif","onlypost":false,"offset_factor":2},"web_analytics":{"enable":false,"baidu":null,"google":null,"gtag":null,"tencent":{"sid":null,"cid":null},"woyaola":null,"cnzz":null,"leancloud":{"app_id":null,"app_key":null,"server_url":null,"path":"window.location.pathname","ignore_local":false}},"search_path":"/local-search.xml"};
+  </script>
+  <script  src="/js/utils.js" ></script>
+  <script  src="/js/color-schema.js" ></script>
+<meta name="generator" content="Hexo 6.1.0"></head>
+
+
+<body>
+  <header style="height: 70vh;">
+    <nav id="navbar" class="navbar fixed-top  navbar-expand-lg navbar-dark scrolling-navbar">
+  <div class="container">
+    <a class="navbar-brand" href="/">
+      <strong>MrzLeo</strong>
+    </a>
+
+    <button id="navbar-toggler-btn" class="navbar-toggler" type="button" data-toggle="collapse"
+            data-target="#navbarSupportedContent"
+            aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+      <div class="animated-icon"><span></span><span></span><span></span></div>
+    </button>
+
+    <!-- Collapsible content -->
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+      <ul class="navbar-nav ml-auto text-center">
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/">
+                <i class="iconfont icon-home-fill"></i>
+                首页
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/archives/">
+                <i class="iconfont icon-archive-fill"></i>
+                归档
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/categories/">
+                <i class="iconfont icon-category-fill"></i>
+                分类
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/tags/">
+                <i class="iconfont icon-tags-fill"></i>
+                标签
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/about/">
+                <i class="iconfont icon-user-fill"></i>
+                关于
+              </a>
+            </li>
+          
+        
+        
+          <li class="nav-item" id="search-btn">
+            <a class="nav-link" target="_self" href="javascript:;" data-toggle="modal" data-target="#modalSearch" aria-label="Search">
+              &nbsp;<i class="iconfont icon-search"></i>&nbsp;
+            </a>
+          </li>
+        
+        
+          <li class="nav-item" id="color-toggle-btn">
+            <a class="nav-link" target="_self" href="javascript:;" aria-label="Color Toggle">&nbsp;<i
+                class="iconfont icon-dark" id="color-toggle-icon"></i>&nbsp;</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</nav>
+
+    <div class="banner" id="banner" parallax=true
+         style="background: url('/img/default.png') no-repeat center center;
+           background-size: cover;">
+      <div class="full-bg-img">
+        <div class="mask flex-center" style="background-color: rgba(0, 0, 0, 0.3)">
+          <div class="page-header text-center fade-in-up">
+            <span class="h2" id="subtitle" title="linux 设备树">
+              
+            </span>
+
+            
+              <div class="mt-3">
+  
+  
+    <span class="post-meta">
+      <i class="iconfont icon-date-fill" aria-hidden="true"></i>
+      <time datetime="2021-07-08 00:00" pubdate>
+        2021年7月8日 凌晨
+      </time>
+    </span>
+  
+</div>
+
+<div class="mt-1">
+  
+    <span class="post-meta mr-2">
+      <i class="iconfont icon-chart"></i>
+      8.4k 字
+    </span>
+  
+
+  
+    <span class="post-meta mr-2">
+      <i class="iconfont icon-clock-fill"></i>
+      
+      
+      71 分钟
+    </span>
+  
+
+  
+  
+</div>
+
+            
+          </div>
+
+          
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    
+      
+
+<div class="container-fluid nopadding-x">
+  <div class="row nomargin-x">
+    <div class="d-none d-lg-block col-lg-2"></div>
+    <div class="col-lg-8 nopadding-x-md">
+      <div class="container nopadding-x-md" id="board-ctn">
+        <div class="py-5" id="board">
+          <article class="post-content mx-auto">
+            <!-- SEO header -->
+            <h1 style="display: none">linux 设备树</h1>
+            
+            <div class="markdown-body">
+              <h1 id="Qemu-Device-Tree"><a href="#Qemu-Device-Tree" class="headerlink" title="Qemu Device Tree"></a>Qemu Device Tree</h1><h2 id="1-设备树的概念"><a href="#1-设备树的概念" class="headerlink" title="1. 设备树的概念"></a>1. 设备树的概念</h2><p>设备树是描述计算机的特定硬件设备信息的数据结构，以便操作系统内核可以方便的管理和使用这些硬件，包括CPU、内存、PCIe总线和其他一些外设。嵌入式设备的引导过程中，通常使用设备树来传递无法被自动探测的板级硬件信息。</p>
+<h2 id="2-设备树的文件"><a href="#2-设备树的文件" class="headerlink" title="2. 设备树的文件"></a>2. 设备树的文件</h2><h3 id="2-1-文件之间的关系"><a href="#2-1-文件之间的关系" class="headerlink" title="2.1 文件之间的关系"></a>2.1 文件之间的关系</h3><p>设备树文件的源文件是后缀为<code>.dts</code>（Device Tree Source）文件，每一款单独的硬件可以单独写一份。<code>.dts</code>文件编译后得到的可执行文件是<code>.dtb</code>（Device Tree Blob）文件，<code>dtb</code>文件通过<code>Bootloader</code>引导程序加载到内核。</p>
+<figure class="highlight markdown"><table><tr><td class="gutter"><div class="code-wrapper"><pre><span class="line">1</span><br></pre></div></td><td class="code"><pre><code class="hljs markdown">DTS ------ <span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">DTC</span>&gt;</span></span> ------&gt; DTB ------ <span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">Bootloader</span>&gt;</span></span> ------&gt; Kernel<br></code></pre></td></tr></table></figure>
+<h3 id="2-2-dtc工具"><a href="#2-2-dtc工具" class="headerlink" title="2.2 dtc工具"></a>2.2 dtc工具</h3><p><code>dtc</code>（Device Tree Compiler）是<code>dts</code>的编译器，在<code>Linux</code>中可能已经自带，可以通过</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs bash">dtc --version<br></code></pre></td></tr></table></figure>
+<p>进行验证。</p>
+<p>如果未安装，可以通过指令（Debian系Linux）</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs shell">sudo apt-get install device-tree-compiler<br></code></pre></td></tr></table></figure>
+<p>进行安装。</p>
+<h3 id="2-3-dts文件的基本框架"><a href="#2-3-dts文件的基本框架" class="headerlink" title="2.3 dts文件的基本框架"></a>2.3 <code>dts</code>文件的基本框架</h3><figure class="highlight dts"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><code class="hljs dts"><span class="hljs-comment">//最简单的示例代码</span><br><span class="hljs-keyword">/dts-v1/</span><span class="hljs-punctuation">;</span><br><br><span class="hljs-title class_">/</span> <span class="hljs-punctuation">&#123;</span><br>    <span class="hljs-title class_">node1</span> <span class="hljs-punctuation">&#123;</span><br>        <span class="hljs-attr">a-string-property</span> <span class="hljs-operator">=</span> <span class="hljs-string">&quot;A string&quot;</span><span class="hljs-punctuation">;</span><br>        <span class="hljs-attr">a-string-list-property</span> <span class="hljs-operator">=</span> <span class="hljs-string">&quot;first string&quot;</span>, <span class="hljs-string">&quot;second string&quot;</span><span class="hljs-punctuation">;</span><br>        <span class="hljs-comment">// hex is implied in byte arrays. no &#x27;0x&#x27; prefix is required</span><br>        <span class="hljs-attr">a-byte-data-property</span> <span class="hljs-operator">=</span> [<span class="hljs-number">01</span> <span class="hljs-number">23</span> <span class="hljs-number">34</span> <span class="hljs-number">56</span>]<span class="hljs-punctuation">;</span><br>        <span class="hljs-title class_">child-node1</span> <span class="hljs-punctuation">&#123;</span><br>            <span class="hljs-attr">first-child-property</span><span class="hljs-punctuation">;</span><br>            <span class="hljs-attr">second-child-property</span> <span class="hljs-operator">=</span> <span class="hljs-params">&lt;<span class="hljs-number">1</span>&gt;</span><span class="hljs-punctuation">;</span><br>            <span class="hljs-attr">a-string-property</span> <span class="hljs-operator">=</span> <span class="hljs-string">&quot;Hello, world&quot;</span><span class="hljs-punctuation">;</span><br>        <span class="hljs-punctuation">&#125;;</span><br>        <span class="hljs-title class_">child-node2</span> <span class="hljs-punctuation">&#123;</span><br>        <span class="hljs-punctuation">&#125;;</span><br>    <span class="hljs-punctuation">&#125;;</span><br>    <span class="hljs-title class_">node2</span> <span class="hljs-punctuation">&#123;</span><br>        <span class="hljs-attr">an-empty-property</span><span class="hljs-punctuation">;</span><br>        <span class="hljs-attr">a-cell-property</span> <span class="hljs-operator">=</span> <span class="hljs-params">&lt;<span class="hljs-number">1</span> <span class="hljs-number">2</span> <span class="hljs-number">3</span> <span class="hljs-number">4</span>&gt;</span><span class="hljs-punctuation">;</span> <span class="hljs-comment">/* each number (cell) is a uint32 */</span><br>        <span class="hljs-title class_">child-node1</span> <span class="hljs-punctuation">&#123;</span><br>        <span class="hljs-punctuation">&#125;;</span><br>    <span class="hljs-punctuation">&#125;;</span><br><span class="hljs-punctuation">&#125;;</span><br></code></pre></td></tr></table></figure>
+<p>设备树由节点组成，其中的每一个节点都有如下几个部分：</p>
+<ol>
+<li><p>根结点：“/”</p>
+</li>
+<li><p>节点名称：如“node1”和“node2”</p>
+</li>
+<li><p>节点地址：</p>
+</li>
+<li><p>子节点：如“child-node1”</p>
+</li>
+<li><p>属性：名称+属性值</p>
+<p>属性实际上是一对对的<strong>键值对</strong>，属性名为键，属性值为值。其中，值有五种可能的方式：</p>
+<ol>
+<li>文字字符串（text strings）<ul>
+<li><code>string-property = &quot;a string&quot;;</code></li>
+</ul>
+</li>
+<li>Cells（32 bit unsigned integers delimited by a angle brackets）<ul>
+<li><code>cell-property = &lt;0xbeef 123 0xabcd1234&gt;;</code></li>
+</ul>
+</li>
+<li>Binary data is delimited with square brackets<ul>
+<li><code>[0x01 0x23 0x45 0x67];</code></li>
+</ul>
+</li>
+<li>不同的表示方式可以混合，用逗号隔开：<ul>
+<li><code>mixed-property = &quot;a string&quot;, [0x10 0x23 0x45 0x67], &lt;0x1234&gt;;</code></li>
+</ul>
+</li>
+<li>逗号还可以用来创造一组字符串：<ul>
+<li><code>string-list = &quot;red fish&quot;, &quot;blue fish&quot;;</code></li>
+</ul>
+</li>
+</ol>
+</li>
+<li><p>标签</p>
+<p><img src="https://i.loli.net/2021/07/12/2gkxLPnRBZh7sDq.png" srcset="/img/loading.gif" lazyload alt="image-20210708115919427"></p>
+</li>
+</ol>
+<h3 id="2-4-基本概念"><a href="#2-4-基本概念" class="headerlink" title="2.4 基本概念"></a>2.4 基本概念</h3><h4 id="2-4-1-compatible"><a href="#2-4-1-compatible" class="headerlink" title="2.4.1 compatible"></a>2.4.1 <code>compatible</code></h4><p><code>comatible</code>是每一个设备的基本属性，他表示了设备的标识符，每一个设备应该拥有一个独一无二的<code>compatible</code>。</p>
+<ul>
+<li><code>compatible</code>的格式：<code>“&lt;manufacturer&gt;,&lt;model&gt;”</code></li>
+</ul>
+<figure class="highlight dts"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs dts"><span class="hljs-title class_">/</span> <span class="hljs-punctuation">&#123;</span><br>	<span class="hljs-attr">compatible</span> <span class="hljs-operator">=</span> <span class="hljs-string">&quot;acm,coyotes-revenge&quot;</span><span class="hljs-punctuation">;</span><br><span class="hljs-punctuation">&#125;</span><br></code></pre></td></tr></table></figure>
+<blockquote>
+<p>⚠️值得注意的是，compatible不一定只有一个参数，有可能写作一个字符串列表，例如<code>compatible = &quot;fsl, mpc8349-uart&quot;, &quot;ns16550&quot;</code>。这时候，第一个字符串表示的是该设备的准确类型（exact device），之后的表示该设备可兼容的其他设备。</p>
+</blockquote>
+<h4 id="2-4-2-节点名称"><a href="#2-4-2-节点名称" class="headerlink" title="2.4.2 节点名称"></a>2.4.2 节点名称</h4><ul>
+<li><p>节点名称的格式：<code>&lt;name&gt;[@&lt;unit-address&gt;]</code></p>
+</li>
+<li><p><code>name</code>：ascii 字符串且不超过31个字符，一般情况下用来表示设备的种类，例如<code>cpu</code>、<code>ethernet</code></p>
+</li>
+<li><code>unit-address</code>：用来获取该设备的原始地址，他会被列入节点的<code>reg</code>属性中</li>
+</ul>
+<h4 id="2-4-3-寻址"><a href="#2-4-3-寻址" class="headerlink" title="2.4.3 寻址"></a>2.4.3 寻址</h4><ul>
+<li><p>寻址使用的三个属性：</p>
+<ol>
+<li><code>reg</code></li>
+<li><code>#address-cells</code></li>
+<li><code>#size-cells</code></li>
+</ol>
+</li>
+<li><p><code>reg</code></p>
+<ul>
+<li><code>reg</code>的基本格式：<code>reg = &lt;address1 length1 [address2 length2] [address3 length3] ... &gt;</code></li>
+</ul>
+</li>
+<li><p><code>#address-cells</code> 和 <code>#size-cells</code> 则用来表示子模块的寻址的<code>reg</code>的属性</p>
+</li>
+<li><p>```dts<br>/ {</p>
+<div class="code-wrapper"><pre><code class="hljs">#address-cells = &lt;1&gt;;
+#size-cells = &lt;1&gt;;
+
+...
+
+serial@101f0000 &#123;
+    compatible = &quot;arm,pl011&quot;;
+    reg = &lt;0x101f0000 0x1000 &gt;;
+&#125;;
+</code></pre></div><p>};</p>
+<figure class="highlight autohotkey"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><code class="hljs autohotkey"><br>- 例如如上的例子中，根节点（`/`）的`#address-cells`的值是<span class="hljs-number">1</span>，这表示子节点中的`reg`中用一个数字表示来表示地址，对应`serial`中的`0x101f0000`；根结点的`#size-cells`是<span class="hljs-number">1</span>，对应`0x1000`。在<span class="hljs-number">32</span>-bit的机器中，用<span class="hljs-number">1</span>个数字表示地址，<span class="hljs-number">64</span>-bit机器中则更可能使用两个数字表示地址。<br><br>- ```dts<br>  // 另一个例子<br>  external-bus &#123;<br><span class="hljs-meta">      #address-cells = &lt;2&gt;;</span><br><span class="hljs-meta">      #size-cells = &lt;1&gt;;</span><br>  <br>      ethernet@<span class="hljs-number">0</span>,<span class="hljs-number">0</span> &#123;<br>          compatible = <span class="hljs-string">&quot;smc,smc91c111&quot;</span><span class="hljs-comment">;</span><br>          reg = &lt;<span class="hljs-number">0</span> <span class="hljs-number">0</span> <span class="hljs-number">0</span>x1000&gt;<span class="hljs-comment">;</span><br>      &#125;<span class="hljs-comment">;</span><br>  <br>      i2c@<span class="hljs-number">1</span>,<span class="hljs-number">0</span> &#123;<br>          compatible = <span class="hljs-string">&quot;acme,a1234-i2c-bus&quot;</span><span class="hljs-comment">;</span><br>          reg = &lt;<span class="hljs-number">1</span> <span class="hljs-number">0</span> <span class="hljs-number">0</span>x1000&gt;<span class="hljs-comment">;</span><br>          rtc@<span class="hljs-number">58</span> &#123;<br>              compatible = <span class="hljs-string">&quot;maxim,ds1338&quot;</span><span class="hljs-comment">;</span><br>          &#125;<span class="hljs-comment">;</span><br>      &#125;<span class="hljs-comment">;</span><br>  <br>      flash@<span class="hljs-number">2</span>,<span class="hljs-number">0</span> &#123;<br>          compatible = <span class="hljs-string">&quot;samsung,k8f1315ebm&quot;</span>, <span class="hljs-string">&quot;cfi-flash&quot;</span><span class="hljs-comment">;</span><br>          reg = &lt;<span class="hljs-number">2</span> <span class="hljs-number">0</span> <span class="hljs-number">0</span>x4000000&gt;<span class="hljs-comment">;</span><br>      &#125;<span class="hljs-comment">;</span><br>  &#125;<span class="hljs-comment">;</span><br></code></pre></td></tr></table></figure>
+</li>
+<li><p>上述另一个例子中，地址由两个数字表示，那么第一个数字表示chipselect number，第二个数字表示offset。</p>
+</li>
+</ul>
+<h5 id="Non-Memory-Mapped-Devices"><a href="#Non-Memory-Mapped-Devices" class="headerlink" title="Non Memory Mapped Devices"></a>Non Memory Mapped Devices</h5><p>非内存映射的设备使用时，<code>#size-cells</code>属性为0，仅根据具体的地址号寻址。</p>
+<figure class="highlight dts"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><code class="hljs dts">i2c@<span class="hljs-number">1</span>,<span class="hljs-number">0</span> <span class="hljs-punctuation">&#123;</span><br>    <span class="hljs-attr">compatible</span> <span class="hljs-operator">=</span> <span class="hljs-string">&quot;acme,a1234-i2c-bus&quot;</span><span class="hljs-punctuation">;</span><br>    <span class="hljs-meta">#address-cells = &lt;1&gt;;</span><br>    <span class="hljs-meta">#size-cells = &lt;0&gt;;</span><br>    <span class="hljs-attr">reg</span> <span class="hljs-operator">=</span> <span class="hljs-params">&lt;<span class="hljs-number">1</span> <span class="hljs-number">0</span> <span class="hljs-number">0x1000</span>&gt;</span><span class="hljs-punctuation">;</span><br>    <span class="hljs-title class_">rtc@58</span> <span class="hljs-punctuation">&#123;</span><br>        <span class="hljs-attr">compatible</span> <span class="hljs-operator">=</span> <span class="hljs-string">&quot;maxim,ds1338&quot;</span><span class="hljs-punctuation">;</span><br>        <span class="hljs-attr">reg</span> <span class="hljs-operator">=</span> <span class="hljs-params">&lt;<span class="hljs-number">58</span>&gt;</span><span class="hljs-punctuation">;</span><br>    <span class="hljs-punctuation">&#125;;</span><br><span class="hljs-punctuation">&#125;;</span><br><br><span class="hljs-title class_">cpus</span> <span class="hljs-punctuation">&#123;</span><br>    <span class="hljs-meta">#address-cells = &lt;1&gt;;</span><br>    <span class="hljs-meta">#size-cells = &lt;0&gt;;</span><br>    <span class="hljs-title class_">cpu@0</span> <span class="hljs-punctuation">&#123;</span><br>        <span class="hljs-attr">compatible</span> <span class="hljs-operator">=</span> <span class="hljs-string">&quot;arm,cortex-a9&quot;</span><span class="hljs-punctuation">;</span><br>        <span class="hljs-attr">reg</span> <span class="hljs-operator">=</span> <span class="hljs-params">&lt;<span class="hljs-number">0</span>&gt;</span><span class="hljs-punctuation">;</span><br>    <span class="hljs-punctuation">&#125;;</span><br>    <span class="hljs-title class_">cpu@1</span> <span class="hljs-punctuation">&#123;</span><br>        <span class="hljs-attr">compatible</span> <span class="hljs-operator">=</span> <span class="hljs-string">&quot;arm,cortex-a9&quot;</span><span class="hljs-punctuation">;</span><br>        <span class="hljs-attr">reg</span> <span class="hljs-operator">=</span> <span class="hljs-params">&lt;<span class="hljs-number">1</span>&gt;</span><span class="hljs-punctuation">;</span><br>    <span class="hljs-punctuation">&#125;;</span><br><span class="hljs-punctuation">&#125;;</span><br></code></pre></td></tr></table></figure>
+<h4 id="2-4-4-地址转换（ranges）"><a href="#2-4-4-地址转换（ranges）" class="headerlink" title="2.4.4 地址转换（ranges）"></a>2.4.4 地址转换（<code>ranges</code>）</h4><p>设备树中使用<code>ranges</code>表示地址的转换。例如，从CPU地址转换到PCI总线地址的时候，我们需要将CPU的地址转换成具体的PCI地址，从而达到访问设备的目的。在下面这个例子中，<code>external-bus</code>拥有独立的地址空间，设备<code>ethernet</code>的总线地址为<code>0</code>，长度为<code>0x1000</code>，会被总线转换成<code>0x10100000-0x1010ffff</code>。</p>
+<figure class="highlight dts"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><code class="hljs dts"><span class="hljs-title class_">external-bus</span> <span class="hljs-punctuation">&#123;</span><br>    <span class="hljs-meta">#address-cells = &lt;2&gt;;</span><br>    <span class="hljs-meta">#size-cells = &lt;1&gt;;</span><br>    <span class="hljs-attr">ranges</span> <span class="hljs-operator">=</span> <span class="hljs-params">&lt;<span class="hljs-number">0</span> <span class="hljs-number">0</span>  <span class="hljs-number">0x10100000</span>   <span class="hljs-number">0x10000</span>     // Chipselect <span class="hljs-number">1</span>, Ethernet</span><br><span class="hljs-params">    		  <span class="hljs-number">1</span> <span class="hljs-number">0</span>  <span class="hljs-number">0x10160000</span>   <span class="hljs-number">0x10000</span>     // Chipselect <span class="hljs-number">2</span>, i2c controller</span><br><span class="hljs-params">    		  <span class="hljs-number">2</span> <span class="hljs-number">0</span>  <span class="hljs-number">0x30000000</span>   <span class="hljs-number">0x1000000</span>&gt;</span><span class="hljs-punctuation">;</span> <span class="hljs-comment">// Chipselect 3, NOR Flash</span><br><br>    ethernet@<span class="hljs-number">0</span>,<span class="hljs-number">0</span> <span class="hljs-punctuation">&#123;</span><br>        <span class="hljs-attr">compatible</span> <span class="hljs-operator">=</span> <span class="hljs-string">&quot;smc,smc91c111&quot;</span><span class="hljs-punctuation">;</span><br>        <span class="hljs-attr">reg</span> <span class="hljs-operator">=</span> <span class="hljs-params">&lt;<span class="hljs-number">0</span> <span class="hljs-number">0</span> <span class="hljs-number">0x1000</span>&gt;</span><span class="hljs-punctuation">;</span><br>    <span class="hljs-punctuation">&#125;;</span><br><br>    i2c@<span class="hljs-number">1</span>,<span class="hljs-number">0</span> <span class="hljs-punctuation">&#123;</span><br>        <span class="hljs-attr">compatible</span> <span class="hljs-operator">=</span> <span class="hljs-string">&quot;acme,a1234-i2c-bus&quot;</span><span class="hljs-punctuation">;</span><br>        <span class="hljs-meta">#address-cells = &lt;1&gt;;</span><br>        <span class="hljs-meta">#size-cells = &lt;0&gt;;</span><br>        <span class="hljs-attr">reg</span> <span class="hljs-operator">=</span> <span class="hljs-params">&lt;<span class="hljs-number">1</span> <span class="hljs-number">0</span> <span class="hljs-number">0x1000</span>&gt;</span><span class="hljs-punctuation">;</span><br>        <span class="hljs-title class_">rtc@58</span> <span class="hljs-punctuation">&#123;</span><br>            <span class="hljs-attr">compatible</span> <span class="hljs-operator">=</span> <span class="hljs-string">&quot;maxim,ds1338&quot;</span><span class="hljs-punctuation">;</span><br>            <span class="hljs-attr">reg</span> <span class="hljs-operator">=</span> <span class="hljs-params">&lt;<span class="hljs-number">58</span>&gt;</span><span class="hljs-punctuation">;</span><br>        <span class="hljs-punctuation">&#125;;</span><br>    <span class="hljs-punctuation">&#125;;</span><br><br>    flash@<span class="hljs-number">2</span>,<span class="hljs-number">0</span> <span class="hljs-punctuation">&#123;</span><br>        <span class="hljs-attr">compatible</span> <span class="hljs-operator">=</span> <span class="hljs-string">&quot;samsung,k8f1315ebm&quot;</span>, <span class="hljs-string">&quot;cfi-flash&quot;</span><span class="hljs-punctuation">;</span><br>        <span class="hljs-attr">reg</span> <span class="hljs-operator">=</span> <span class="hljs-params">&lt;<span class="hljs-number">2</span> <span class="hljs-number">0</span> <span class="hljs-number">0x4000000</span>&gt;</span><span class="hljs-punctuation">;</span><br>    <span class="hljs-punctuation">&#125;;</span><br><span class="hljs-punctuation">&#125;;</span><br></code></pre></td></tr></table></figure>
+<h4 id="2-4-5-中断"><a href="#2-4-5-中断" class="headerlink" title="2.4.5 中断"></a>2.4.5 中断</h4><p>四个属性与中断相关：</p>
+<ol>
+<li><code>interrupt-controller</code>：空属性，表示一个节点是中断控制器</li>
+<li><code>#interrupt-cells</code>：中断控制器的属性，表示多少个数字作为中断标识符（与<code>#address-cells</code>和<code>#size-cells</code>类似）</li>
+<li><code>interrupt-parent</code>：表示一个节点指向的中断控制器</li>
+<li><code>interrupts</code>：中断标识符，一个标识符代表一个信号</li>
+</ol>
+<figure class="highlight dts"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><code class="hljs dts"><span class="hljs-title class_">/</span> <span class="hljs-punctuation">&#123;</span><br>    <span class="hljs-attr">compatible</span> <span class="hljs-operator">=</span> <span class="hljs-string">&quot;acme,coyotes-revenge&quot;</span><span class="hljs-punctuation">;</span><br>    <span class="hljs-meta">#address-cells = &lt;1&gt;;</span><br>    <span class="hljs-meta">#size-cells = &lt;1&gt;;</span><br>    <span class="hljs-attr">interrupt-parent</span> <span class="hljs-operator">=</span> <span class="hljs-params">&lt;<span class="hljs-variable">&amp;intc</span>&gt;</span><span class="hljs-punctuation">;</span><br><br>    <span class="hljs-title class_">serial@101f0000</span> <span class="hljs-punctuation">&#123;</span><br>        <span class="hljs-attr">compatible</span> <span class="hljs-operator">=</span> <span class="hljs-string">&quot;arm,pl011&quot;</span><span class="hljs-punctuation">;</span><br>        <span class="hljs-attr">reg</span> <span class="hljs-operator">=</span> <span class="hljs-params">&lt;<span class="hljs-number">0x101f0000</span> <span class="hljs-number">0x1000</span> &gt;</span><span class="hljs-punctuation">;</span><br>        <span class="hljs-attr">interrupts</span> <span class="hljs-operator">=</span> <span class="hljs-params">&lt; <span class="hljs-number">1</span> <span class="hljs-number">0</span> &gt;</span><span class="hljs-punctuation">;</span><br>    <span class="hljs-punctuation">&#125;;</span><br><span class="hljs-symbol"></span><br><span class="hljs-symbol">    intc:</span> <span class="hljs-title class_">interrupt-controller@10140000</span> <span class="hljs-punctuation">&#123;</span><br>        <span class="hljs-attr">compatible</span> <span class="hljs-operator">=</span> <span class="hljs-string">&quot;arm,pl190&quot;</span><span class="hljs-punctuation">;</span><br>        <span class="hljs-attr">reg</span> <span class="hljs-operator">=</span> <span class="hljs-params">&lt;<span class="hljs-number">0x10140000</span> <span class="hljs-number">0x1000</span> &gt;</span><span class="hljs-punctuation">;</span><br>        <span class="hljs-attr">interrupt-controller</span><span class="hljs-punctuation">;</span><br>        <span class="hljs-meta">#interrupt-cells = &lt;2&gt;;</span><br>    <span class="hljs-punctuation">&#125;;</span><br><span class="hljs-punctuation">&#125;;</span><br></code></pre></td></tr></table></figure>
+<h4 id="2-4-6-特殊节点"><a href="#2-4-6-特殊节点" class="headerlink" title="2.4.6 特殊节点"></a>2.4.6 特殊节点</h4><ol>
+<li><p><code>aliases</code>：表示别名</p>
+<figure class="highlight dts"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs dts"><span class="hljs-title class_">aliases</span> <span class="hljs-punctuation">&#123;</span><br>	ethernet0 = <span class="hljs-variable">&amp;eth0</span><span class="hljs-punctuation">;</span><br><span class="hljs-punctuation">&#125;</span><br></code></pre></td></tr></table></figure>
+</li>
+<li><p><code>chosen</code>：非实际设备，表示一个从firmware到os传递数据的空间。</p>
+<figure class="highlight dts"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs dts"><span class="hljs-title class_">chosen</span> <span class="hljs-punctuation">&#123;</span><br>	<span class="hljs-attr">bootargs</span> <span class="hljs-operator">=</span> <span class="hljs-string">&quot;root=/dev/nfs rw nfsroot=192.168.1.1 console=ttyS0,115200&quot;</span><span class="hljs-punctuation">;</span><br><span class="hljs-punctuation">&#125;;</span><br></code></pre></td></tr></table></figure>
+</li>
+</ol>
+<h4 id="2-4-7-PCI"><a href="#2-4-7-PCI" class="headerlink" title="2.4.7 PCI"></a>2.4.7 PCI</h4><ol>
+<li><p>PCI Bus numbering</p>
+<p><code>bus-range</code>：包含两个数字，第一个表示赋给该节点的bus number，第二个表示任何下属的PCI总线的最大总线编号。</p>
+<figure class="highlight dts"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs dts"><span class="hljs-title class_">pci@0x10180000</span> <span class="hljs-punctuation">&#123;</span><br>    <span class="hljs-attr">compatible</span> <span class="hljs-operator">=</span> <span class="hljs-string">&quot;arm,versatile-pci-hostbridge&quot;</span>, <span class="hljs-string">&quot;pci&quot;</span><span class="hljs-punctuation">;</span><br>    <span class="hljs-attr">reg</span> <span class="hljs-operator">=</span> <span class="hljs-params">&lt;<span class="hljs-number">0x10180000</span> <span class="hljs-number">0x1000</span>&gt;</span><span class="hljs-punctuation">;</span><br>    <span class="hljs-attr">interrupts</span> <span class="hljs-operator">=</span> <span class="hljs-params">&lt;<span class="hljs-number">8</span> <span class="hljs-number">0</span>&gt;</span><span class="hljs-punctuation">;</span><br>    <span class="hljs-attr">bus-range</span> <span class="hljs-operator">=</span> <span class="hljs-params">&lt;<span class="hljs-number">0</span> <span class="hljs-number">0</span>&gt;</span><span class="hljs-punctuation">;</span><br><span class="hljs-punctuation">&#125;;</span><br></code></pre></td></tr></table></figure>
+</li>
+<li><p>PCI Address Translation</p>
+<p>PCI地址的转换与之前一样，由<code>range</code>、<code>#address-cells</code>、<code>#size-cells</code>三个属性共同完成，下面是一个例子：</p>
+<figure class="highlight dts"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><code class="hljs dts"><span class="hljs-title class_">pci@0x10180000</span> <span class="hljs-punctuation">&#123;</span><br>    <span class="hljs-attr">compatible</span> <span class="hljs-operator">=</span> <span class="hljs-string">&quot;arm,versatile-pci-hostbridge&quot;</span>, <span class="hljs-string">&quot;pci&quot;</span><span class="hljs-punctuation">;</span><br>    <span class="hljs-attr">reg</span> <span class="hljs-operator">=</span> <span class="hljs-params">&lt;<span class="hljs-number">0x10180000</span> <span class="hljs-number">0x1000</span>&gt;</span><span class="hljs-punctuation">;</span><br>    <span class="hljs-attr">interrupts</span> <span class="hljs-operator">=</span> <span class="hljs-params">&lt;<span class="hljs-number">8</span> <span class="hljs-number">0</span>&gt;</span><span class="hljs-punctuation">;</span><br>    <span class="hljs-attr">bus-range</span> <span class="hljs-operator">=</span> <span class="hljs-params">&lt;<span class="hljs-number">0</span> <span class="hljs-number">0</span>&gt;</span><span class="hljs-punctuation">;</span><br><br>    <span class="hljs-meta">#address-cells = &lt;3&gt;</span><br>    <span class="hljs-meta">#size-cells = &lt;2&gt;;</span><br>    <span class="hljs-attr">ranges</span> <span class="hljs-operator">=</span> <span class="hljs-params">&lt;<span class="hljs-number">0x42000000</span> <span class="hljs-number">0</span> <span class="hljs-number">0x80000000</span> <span class="hljs-number">0x80000000</span> <span class="hljs-number">0</span> <span class="hljs-number">0x20000000</span></span><br><span class="hljs-params">              <span class="hljs-number">0x02000000</span> <span class="hljs-number">0</span> <span class="hljs-number">0xa0000000</span> <span class="hljs-number">0xa0000000</span> <span class="hljs-number">0</span> <span class="hljs-number">0x10000000</span></span><br><span class="hljs-params">              <span class="hljs-number">0x01000000</span> <span class="hljs-number">0</span> <span class="hljs-number">0x00000000</span> <span class="hljs-number">0xb0000000</span> <span class="hljs-number">0</span> <span class="hljs-number">0x01000000</span>&gt;</span><span class="hljs-punctuation">;</span><br><span class="hljs-punctuation">&#125;;</span><br></code></pre></td></tr></table></figure>
+<p>Child address(在这个例子中即PCI地址)使用了三个cells来表示：<code>0x42000000 0 0x80000000</code>，三个cells分别表示：</p>
+<ul>
+<li><code>phys.hi cell: npt000ss bbbbbbbb dddddfff rrrrrrrr</code></li>
+<li><code>phys.mid cell: hhhhhhhh hhhhhhhh hhhhhhhh hhhhhhhh</code></li>
+<li><code>phys.low cell: llllllll llllllll llllllll llllllll</code></li>
+</ul>
+<p>PCI地址有64位宽，所以被编码进了<code>phys.mid</code>和<code>phys.low</code>，而<code>phys.hi</code>表示一些相关的信息：</p>
+<ul>
+<li><code>n</code>：relocatable region flag</li>
+<li><code>p</code>：prefetchable (cacheable) region flag</li>
+<li><code>t</code>：aliased address flag</li>
+<li><code>ss</code>：space code<ul>
+<li><code>00</code>：configuration space</li>
+<li><code>01</code>：I/O space</li>
+<li><code>10</code>：32 bit memory space</li>
+<li><code>11</code>：64 bit memory space</li>
+</ul>
+</li>
+<li><code>bbbbbbbb</code>：PCI bus number</li>
+<li><code>ddddd</code>：device number</li>
+<li><code>fff</code>：function number, used for multifunction PCI devices</li>
+<li><code>rrrrrrrr</code>：Register number, used for aconfiguration cycles</li>
+</ul>
+</li>
+<li><p>PCI DMA Address Translation</p>
+<p>DMA的设置与此前类似：</p>
+<figure class="highlight dts"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs dts"><span class="hljs-title class_">pci@0x10180000</span> <span class="hljs-punctuation">&#123;</span><br>    ...<br>    <span class="hljs-attr">dma-ranges</span> <span class="hljs-operator">=</span> <span class="hljs-params">&lt;<span class="hljs-number">0x02000000</span> <span class="hljs-number">0</span> <span class="hljs-number">0x00000000</span> <span class="hljs-number">0x80000000</span> <span class="hljs-number">0</span> <span class="hljs-number">0x20000000</span>&gt;</span><span class="hljs-punctuation">;</span><br><span class="hljs-punctuation">&#125;;</span><br></code></pre></td></tr></table></figure>
+</li>
+<li><p>中断映射</p>
+<p>PCI设备可以使用<code>#INTA</code>, <code>#INTB</code>, <code>#INTC</code>, <code>#INTD</code>来触发中断。一个单一功能的设备使用<code>#INTA</code>来触发中断，多功能的设备则当使用一个中断引脚的时候使用<code>#INTA</code>，使用两个中断引脚的时候使用<code>#INTA</code>和<code>#INTB</code>，以此类推。</p>
+<figure class="highlight tap"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><code class="hljs tap">pci@0x10180000 &#123;<br>    compatible = &quot;arm,versatile-pci-hostbridge&quot;, &quot;pci&quot;;<br>    reg = &lt;0x10180000 0x1000&gt;;<br>    interrupts = &lt;8 0&gt;;<br>    bus-range = &lt;0 0&gt;;<br><br>    <span class="hljs-comment">#address-cells = &lt;3&gt;</span><br>    <span class="hljs-comment">#size-cells = &lt;2&gt;;</span><br>    ranges = &lt;0x42000000<span class="hljs-number"> 0 </span>0x80000000  0x80000000 <span class="hljs-number"> 0 </span>0x20000000<br>              0x02000000<span class="hljs-number"> 0 </span>0xa0000000  0xa0000000 <span class="hljs-number"> 0 </span>0x10000000<br>              0x01000000<span class="hljs-number"> 0 </span>0x00000000  0xb0000000 <span class="hljs-number"> 0 </span>0x01000000&gt;;<br><br>    <span class="hljs-comment">#interrupt-cells = &lt;1&gt;;</span><br>    interrupt-map-mask = &lt;0xf800<span class="hljs-number"> 0 </span>0 7&gt;;<br>    interrupt-map = &lt;0xc000<span class="hljs-number"> 0 </span>0<span class="hljs-number"> 1 </span>&amp;intc <span class="hljs-number"> 9 </span>3 	// 1st slot<br>                     0xc000<span class="hljs-number"> 0 </span>0<span class="hljs-number"> 2 </span>&amp;intc<span class="hljs-number"> 10 </span>3<br>                     0xc000<span class="hljs-number"> 0 </span>0<span class="hljs-number"> 3 </span>&amp;intc<span class="hljs-number"> 11 </span>3<br>                     0xc000<span class="hljs-number"> 0 </span>0<span class="hljs-number"> 4 </span>&amp;intc<span class="hljs-number"> 12 </span>3<br><br>                     0xc800<span class="hljs-number"> 0 </span>0<span class="hljs-number"> 1 </span>&amp;intc<span class="hljs-number"> 10 </span>3 	// 2nd slot<br>                     0xc800<span class="hljs-number"> 0 </span>0<span class="hljs-number"> 2 </span>&amp;intc<span class="hljs-number"> 11 </span>3<br>                     0xc800<span class="hljs-number"> 0 </span>0<span class="hljs-number"> 3 </span>&amp;intc<span class="hljs-number"> 12 </span>3<br>                     0xc800<span class="hljs-number"> 0 </span>0<span class="hljs-number"> 4 </span>&amp;intc <span class="hljs-number"> 9 </span>3&gt;;<br>&#125;;<br></code></pre></td></tr></table></figure>
+<p>在上面的例子中，我们有两个PCI槽，各自有4个中断线。</p>
+<ul>
+<li><p>为了识别是哪个设备触发了哪个中断，我们用四个cells来表示：<code>0xc000 0 0 1</code>。前三个分别是<code>phys.hi</code>, <code>phys.mid</code>, <code>phys.low</code>，最后一个是中断信号（<code>#INTA</code>, <code>#INTB</code>…）。</p>
+</li>
+<li><p>后面的三个cells <code>&amp;intc  9 3</code> 分别表示：中断控制器、中断说明符。</p>
+<ul>
+<li>在这里我们可以看到，这个设备的<code>#INTA</code>中断映射到<code>IRQ 9</code>。</li>
+</ul>
+</li>
+</ul>
+</li>
+</ol>
+<blockquote>
+<p>参考：<a target="_blank" rel="noopener" href="https://elinux.org/Device_Tree_Usage">https://elinux.org/Device_Tree_Usage</a></p>
+</blockquote>
+<h2 id="3-Qemu中的device-tree"><a href="#3-Qemu中的device-tree" class="headerlink" title="3. Qemu中的device tree"></a>3. Qemu中的device tree</h2><h3 id="3-1-api"><a href="#3-1-api" class="headerlink" title="3.1 api"></a>3.1 api</h3><p>dtb一词在qemu中被fdt（Flat Device Tree）一词取代，以下所有提到fdt的地方指代dtb，linux平台为设备树的创建提供了libfdt库，由libfdt-devel rpm包提供，这个库提供了fdt操作的各种接口，部分如下：</p>
+<ul>
+<li><code>fdt_create</code>：初始化设备树</li>
+<li><code>fdt_add_subnode</code>：设备树中添加节点</li>
+<li><code>fdt_setprop_cell</code>：设置设备树属性键值对，值为数字</li>
+<li><code>fdt_setprop_string</code>：设置设备属性键值对，值为字符串</li>
+</ul>
+<h3 id="3-2-wrapper-api"><a href="#3-2-wrapper-api" class="headerlink" title="3.2 wrapper api"></a>3.2 wrapper api</h3><p>qemu对libfdt的接口做了二次封装，部分接口举例如下：</p>
+<ul>
+<li><code>create_device_tree</code>：初始化一颗设备树</li>
+<li><code>qemu_fdt_setprop_cell</code>：设置设备树的节点的属性，值为数字</li>
+<li><code>qemu_fdt_setprop_string</code>：设置设备树的节点的属性，值为字符串</li>
+<li><code>qemu_fdt_add_subnode</code>：添加一个子节点</li>
+</ul>
+<h3 id="3-3-设备节点创建及加载"><a href="#3-3-设备节点创建及加载" class="headerlink" title="3.3 设备节点创建及加载"></a>3.3 设备节点创建及加载</h3><p>根据此前的设备树的基本规则，我们在qemu中可以创建一系列的设备树节点，最后形成一个完整的设备树。形成的方式各个开发板的形式各不相同，Arm架构将其保存在一个结构体中，而ppce500则没有。</p>
+<p>qemu在加载好全部镜像之后，跳转到kernel之前，会先加载一个临时生成的bootloader固件到内存，然后跳转到这个固件的执行代码，最终通过这个固件跳转到内核。这就是此前所说的加载dtb文件的过程。</p>
+<h3 id="3-4-命令行参数直接提供设备树文件"><a href="#3-4-命令行参数直接提供设备树文件" class="headerlink" title="3.4 命令行参数直接提供设备树文件"></a>3.4 命令行参数直接提供设备树文件</h3><p>除了利用qemu在代码层面自动生成设备树文件之外，还可以利用命令行参数直接提供对应的设备树文件：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs bash">-dtb xxx.dtb<br></code></pre></td></tr></table></figure>
+<ul>
+<li>这样提供文件必须保证设备与qemu模拟的模拟主板上的设备完全一致。</li>
+<li>提供dtb文件后，可以不需要在qemu中构造对应设置设备树的方法，但一般情况下，模拟主板都会自动生成设备树</li>
+</ul>
+
+            </div>
+            <hr>
+            <div>
+              <div class="post-metas mb-3">
+                
+                
+                  <div class="post-meta">
+                    <i class="iconfont icon-tags"></i>
+                    
+                      <a class="hover-with-bg" href="/tags/QEMU/">QEMU</a>
+                    
+                      <a class="hover-with-bg" href="/tags/device-tree/">device tree</a>
+                    
+                  </div>
+                
+              </div>
+              
+                <p class="note note-warning">
+                  
+                    本博客所有文章除特别声明外，均采用 <a target="_blank" href="https://creativecommons.org/licenses/by-sa/4.0/deed.zh" rel="nofollow noopener noopener">CC BY-SA 4.0 协议</a> ，转载请注明出处！
+                  
+                </p>
+              
+              
+                <div class="post-prevnext">
+                  <article class="post-prev col-6">
+                    
+                    
+                      <a href="/2021/07/10/QemuThreads/">
+                        <i class="iconfont icon-arrowleft"></i>
+                        <span class="hidden-mobile">Qemu Threads</span>
+                        <span class="visible-mobile">上一篇</span>
+                      </a>
+                    
+                  </article>
+                  <article class="post-next col-6">
+                    
+                    
+                      <a href="/2021/06/19/QEMU%E9%9D%A2%E5%90%91%E5%AF%B9%E8%B1%A1%E6%9E%B6%E6%9E%84%E8%AE%BE%E8%AE%A1%E5%88%86%E6%9E%90/">
+                        <span class="hidden-mobile">QEMU面向对象架构设计分析</span>
+                        <span class="visible-mobile">下一篇</span>
+                        <i class="iconfont icon-arrowright"></i>
+                      </a>
+                    
+                  </article>
+                </div>
+              
+            </div>
+
+            
+          </article>
+        </div>
+      </div>
+    </div>
+    
+      <div class="d-none d-lg-block col-lg-2 toc-container" id="toc-ctn">
+        <div id="toc">
+  <p class="toc-header"><i class="iconfont icon-list"></i>&nbsp;目录</p>
+  <div class="toc-body" id="toc-body"></div>
+</div>
+
+      </div>
+    
+  </div>
+</div>
+
+<!-- Custom -->
+
+
+    
+
+    
+      <a id="scroll-top-button" aria-label="TOP" href="#" role="button">
+        <i class="iconfont icon-arrowup" aria-hidden="true"></i>
+      </a>
+    
+
+    
+      <div class="modal fade" id="modalSearch" tabindex="-1" role="dialog" aria-labelledby="ModalLabel"
+     aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header text-center">
+        <h4 class="modal-title w-100 font-weight-bold">搜索</h4>
+        <button type="button" id="local-search-close" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body mx-3">
+        <div class="md-form mb-5">
+          <input type="text" id="local-search-input" class="form-control validate">
+          <label data-error="x" data-success="v"
+                 for="local-search-input">关键词</label>
+        </div>
+        <div class="list-group" id="local-search-result"></div>
+      </div>
+    </div>
+  </div>
+</div>
+    
+
+    
+  </main>
+
+  <footer class="text-center mt-5 py-3">
+  <div class="footer-content">
+     <a href="https://hexo.io" target="_blank" rel="nofollow noopener"><span>Hexo</span></a> <i class="iconfont icon-love"></i> <a href="https://github.com/fluid-dev/hexo-theme-fluid" target="_blank" rel="nofollow noopener"><span>Fluid</span></a> 
+  </div>
+  
+
+  
+
+  
+</footer>
+
+
+  <!-- SCRIPTS -->
+  
+  <script  src="https://cdn.jsdelivr.net/npm/nprogress@0/nprogress.min.js" ></script>
+  <link  rel="stylesheet" href="https://cdn.jsdelivr.net/npm/nprogress@0/nprogress.min.css" />
+
+  <script>
+    NProgress.configure({"showSpinner":false,"trickleSpeed":100})
+    NProgress.start()
+    window.addEventListener('load', function() {
+      NProgress.done();
+    })
+  </script>
+
+
+<script  src="https://cdn.jsdelivr.net/npm/jquery@3/dist/jquery.min.js" ></script>
+<script  src="https://cdn.jsdelivr.net/npm/bootstrap@4/dist/js/bootstrap.min.js" ></script>
+<script  src="/js/events.js" ></script>
+<script  src="/js/plugins.js" ></script>
+
+<!-- Plugins -->
+
+
+  <script  src="/js/local-search.js" ></script>
+
+
+
+  
+    <script  src="/js/img-lazyload.js" ></script>
+  
+
+
+
+  
+
+
+
+  
+    <script  src="https://cdn.jsdelivr.net/npm/tocbot@4/dist/tocbot.min.js" ></script>
+  
+  
+    <script  src="https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@3/dist/jquery.fancybox.min.js" ></script>
+  
+  
+    <script  src="https://cdn.jsdelivr.net/npm/anchor-js@4/anchor.min.js" ></script>
+  
+  
+    <script defer src="https://cdn.jsdelivr.net/npm/clipboard@2/dist/clipboard.min.js" ></script>
+  
+
+
+
+
+
+
+  <script  src="https://cdn.jsdelivr.net/npm/typed.js@2/lib/typed.min.js" ></script>
+  <script>
+    (function (window, document) {
+      var typing = Fluid.plugins.typing;
+      var title = document.getElementById('subtitle').title;
+      
+        typing(title);
+      
+    })(window, document);
+  </script>
+
+
+
+
+
+  
+
+  
+    <!-- MathJax -->
+    <script>
+      MathJax = {
+        tex: {
+          inlineMath: [['$', '$'], ['\\(', '\\)']]
+        },
+        loader: {
+          load: ['ui/lazy']
+        },
+        options: {
+          renderActions: {
+            findScript: [10, doc => {
+              document.querySelectorAll('script[type^="math/tex"]').forEach(node => {
+                const display = !!node.type.match(/; *mode=display/);
+                const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display);
+                const text = document.createTextNode('');
+                node.parentNode.replaceChild(text, node);
+                math.start = { node: text, delim: '', n: 0 };
+                math.end = { node: text, delim: '', n: 0 };
+                doc.math.push(math);
+              });
+            }, '', false],
+            insertedScript: [200, () => {
+              document.querySelectorAll('mjx-container').forEach(node => {
+                let target = node.parentNode;
+                if (target.nodeName.toLowerCase() === 'li') {
+                  target.parentNode.classList.add('has-jax');
+                }
+              });
+            }, '', false]
+          }
+        }
+      };
+    </script>
+
+    <script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js" ></script>
+
+  
+
+
+
+
+
+
+
+
+
+
+
+<!-- 主题的启动项 保持在最底部 -->
+<script  src="/js/boot.js" ></script>
+
+
+</body>
+</html>

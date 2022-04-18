@@ -357,6 +357,48 @@
     <article class="col-12 col-md-12 mx-auto index-info">
       <h1 class="index-header">
         
+        <a href="/2021/08/27/QEMU-%E6%95%85%E9%9A%9C%E6%B3%A8%E5%85%A5/" target="_self">
+          QEMU 故障注入
+        </a>
+      </h1>
+
+      <p class="index-excerpt">
+        <a href="/2021/08/27/QEMU-%E6%95%85%E9%9A%9C%E6%B3%A8%E5%85%A5/" target="_self">
+          
+          Fault Injection in QEMU1. 故障的种类对于故障注入而言，常见的类型主要有：数据故障（data fault）、控制故障（control fault）、IO故障（I&#x2F;O fault）。而根据故障的作用时间，还可以分为永久性故障（permanent fault）、间歇性故障（Intermittent）、短暂性故障（transient）。 在第二种划分方式下，最为常见的永久性故障是
+        </a>
+      </p>
+
+      <div class="index-btm post-metas">
+        
+          <div class="post-meta mr-3">
+            <i class="iconfont icon-date"></i>
+            <time datetime="2021-08-27 00:00" pubdate>
+              2021-08-27
+            </time>
+          </div>
+        
+        
+        
+          <div class="post-meta">
+            <i class="iconfont icon-tags"></i>
+            
+              <a href="/tags/QEMU/">QEMU</a>
+            
+              <a href="/tags/Fault-Injection/">Fault Injection</a>
+            
+          </div>
+        
+      </div>
+    </article>
+  </div>
+
+  <div class="row mx-auto index-card">
+    
+    
+    <article class="col-12 col-md-12 mx-auto index-info">
+      <h1 class="index-header">
+        
         <a href="/2021/08/24/qemu_tcg/" target="_self">
           qemu动态二进制翻译
         </a>
@@ -375,6 +417,46 @@
             <i class="iconfont icon-date"></i>
             <time datetime="2021-08-24 00:00" pubdate>
               2021-08-24
+            </time>
+          </div>
+        
+        
+        
+          <div class="post-meta">
+            <i class="iconfont icon-tags"></i>
+            
+              <a href="/tags/QEMU/">QEMU</a>
+            
+          </div>
+        
+      </div>
+    </article>
+  </div>
+
+  <div class="row mx-auto index-card">
+    
+    
+    <article class="col-12 col-md-12 mx-auto index-info">
+      <h1 class="index-header">
+        
+        <a href="/2021/08/20/QEMU-%E7%A8%8B%E5%BA%8F%E6%8F%92%E6%A1%A9/" target="_self">
+          QEMU 程序插桩
+        </a>
+      </h1>
+
+      <p class="index-excerpt">
+        <a href="/2021/08/20/QEMU-%E7%A8%8B%E5%BA%8F%E6%8F%92%E6%A1%A9/" target="_self">
+          
+          Program Instrumentation in QEMU1. Introduction程序插桩的核心思想是在已有的代码中插入一段自己的代码，从而伴随着程序的运行能够一同执行。在执行的过程中额外插入的代码能够收集到程序运行的相关信息，进而为程序的性能分析提供数据。在QEMU中使用程序插桩技术，实际上就是在QEMU的二进制编译过程中加入代码，与上述定义并无区别。  2. 程序插桩的几个核心问题2
+        </a>
+      </p>
+
+      <div class="index-btm post-metas">
+        
+          <div class="post-meta mr-3">
+            <i class="iconfont icon-date"></i>
+            <time datetime="2021-08-20 00:00" pubdate>
+              2021-08-20
             </time>
           </div>
         
@@ -479,15 +561,15 @@
     <article class="col-12 col-md-12 mx-auto index-info">
       <h1 class="index-header">
         
-        <a href="/2021/06/19/QEMU%E9%9D%A2%E5%90%91%E5%AF%B9%E8%B1%A1%E6%9E%B6%E6%9E%84%E8%AE%BE%E8%AE%A1%E5%88%86%E6%9E%90/" target="_self">
-          QEMU面向对象架构设计分析
+        <a href="/2021/07/08/linux-%E8%AE%BE%E5%A4%87%E6%A0%91/" target="_self">
+          linux 设备树
         </a>
       </h1>
 
       <p class="index-excerpt">
-        <a href="/2021/06/19/QEMU%E9%9D%A2%E5%90%91%E5%AF%B9%E8%B1%A1%E6%9E%B6%E6%9E%84%E8%AE%BE%E8%AE%A1%E5%88%86%E6%9E%90/" target="_self">
+        <a href="/2021/07/08/linux-%E8%AE%BE%E5%A4%87%E6%A0%91/" target="_self">
           
-          在QEMU的QOM框架下定义一个新设备，需要遵循相应的接口，其中最重要的就是设计派生的ObjectClass和Object。这里，我们以一个具体的设备（qemu&#x2F;hw&#x2F;misc&#x2F;edu.c）为例，分析从设计设备到将其载入QEMU系统的过程。 一、新设备的定义——派生的ObjectClass和ObjectObjectClass是一类设备的抽象概念，而Object则是具体设备的概念。这两个概念相互协同
+          Qemu Device Tree1. 设备树的概念设备树是描述计算机的特定硬件设备信息的数据结构，以便操作系统内核可以方便的管理和使用这些硬件，包括CPU、内存、PCIe总线和其他一些外设。嵌入式设备的引导过程中，通常使用设备树来传递无法被自动探测的板级硬件信息。 2. 设备树的文件2.1 文件之间的关系设备树文件的源文件是后缀为.dts（Device Tree Source）文件，每一款单独的硬
         </a>
       </p>
 
@@ -495,8 +577,8 @@
         
           <div class="post-meta mr-3">
             <i class="iconfont icon-date"></i>
-            <time datetime="2021-06-19 00:00" pubdate>
-              2021-06-19
+            <time datetime="2021-07-08 00:00" pubdate>
+              2021-07-08
             </time>
           </div>
         
@@ -507,45 +589,7 @@
             
               <a href="/tags/QEMU/">QEMU</a>
             
-          </div>
-        
-      </div>
-    </article>
-  </div>
-
-  <div class="row mx-auto index-card">
-    
-    
-    <article class="col-12 col-md-12 mx-auto index-info">
-      <h1 class="index-header">
-        
-        <a href="/2021/06/18/QEMU%E6%A6%82%E5%BF%B5%E5%92%8C%E5%AE%9E%E4%BD%93%E7%9A%84%E5%85%B7%E4%BD%93%E5%88%86%E6%9E%90/" target="_self">
-          QEMU概念和实体的具体分析
-        </a>
-      </h1>
-
-      <p class="index-excerpt">
-        <a href="/2021/06/18/QEMU%E6%A6%82%E5%BF%B5%E5%92%8C%E5%AE%9E%E4%BD%93%E7%9A%84%E5%85%B7%E4%BD%93%E5%88%86%E6%9E%90/" target="_self">
-          
-          首先在main执行之前的程序准备阶段，先根据我们提供的register_type函数得到一个ModuleEntry的实体，这个实体是每个设备都对应有一个的，这个实体可以调用我们为设备定义的pci_edu_register_types函数，用于初始化。 12345678910111213void register_module_init(void (*fn)(void), module_init_t
-        </a>
-      </p>
-
-      <div class="index-btm post-metas">
-        
-          <div class="post-meta mr-3">
-            <i class="iconfont icon-date"></i>
-            <time datetime="2021-06-18 00:00" pubdate>
-              2021-06-18
-            </time>
-          </div>
-        
-        
-        
-          <div class="post-meta">
-            <i class="iconfont icon-tags"></i>
-            
-              <a href="/tags/QEMU/">QEMU</a>
+              <a href="/tags/device-tree/">device tree</a>
             
           </div>
         
@@ -554,6 +598,12 @@
   </div>
 
 
+
+  <nav aria-label="navigation">
+    <span class="pagination" id="pagination">
+      <span class="page-number current">1</span><a class="page-number" href="/page/2/#board">2</a><a class="extend next" rel="next" href="/page/2/#board"><i class="iconfont icon-arrowright"></i></a>
+    </span>
+  </nav>
 
 
 

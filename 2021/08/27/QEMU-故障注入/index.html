@@ -18,21 +18,22 @@
   <meta name="author" content="Zhang Jing">
   <meta name="keywords" content="">
   
-    <meta name="description" content="1. 大体实现框架qemu的tcg翻译实现分为运行前预编译的阶段和运行时阶段。 预编译阶段实现的工作是目标指令集的编写。这个阶段需要对目标指令集进行完整的处理，将指令集硬编码成C语言代码，称为微指令（micro operation）。这个微指令相对原本的指令集来说较为精简，且每一个函数都相对简单。硬编码完成后，使用gcc将这些代码编译成object文件（.o文件），这样我们的硬编码阶段就完成了。">
+    <meta name="description" content="Fault Injection in QEMU1. 故障的种类对于故障注入而言，常见的类型主要有：数据故障（data fault）、控制故障（control fault）、IO故障（I&#x2F;O fault）。而根据故障的作用时间，还可以分为永久性故障（permanent fault）、间歇性故障（Intermittent）、短暂性故障（transient）。 在第二种划分方式下，最为常见的永久性故障是">
 <meta property="og:type" content="article">
-<meta property="og:title" content="qemu动态二进制翻译">
-<meta property="og:url" content="https://mrzleo.github.io/2021/08/24/qemu_tcg/index.html">
+<meta property="og:title" content="QEMU 故障注入">
+<meta property="og:url" content="https://mrzleo.github.io/2021/08/27/QEMU-%E6%95%85%E9%9A%9C%E6%B3%A8%E5%85%A5/index.html">
 <meta property="og:site_name" content="Technical Blog">
-<meta property="og:description" content="1. 大体实现框架qemu的tcg翻译实现分为运行前预编译的阶段和运行时阶段。 预编译阶段实现的工作是目标指令集的编写。这个阶段需要对目标指令集进行完整的处理，将指令集硬编码成C语言代码，称为微指令（micro operation）。这个微指令相对原本的指令集来说较为精简，且每一个函数都相对简单。硬编码完成后，使用gcc将这些代码编译成object文件（.o文件），这样我们的硬编码阶段就完成了。">
+<meta property="og:description" content="Fault Injection in QEMU1. 故障的种类对于故障注入而言，常见的类型主要有：数据故障（data fault）、控制故障（control fault）、IO故障（I&#x2F;O fault）。而根据故障的作用时间，还可以分为永久性故障（permanent fault）、间歇性故障（Intermittent）、短暂性故障（transient）。 在第二种划分方式下，最为常见的永久性故障是">
 <meta property="og:locale" content="zh_CN">
-<meta property="article:published_time" content="2021-08-23T16:00:00.000Z">
-<meta property="article:modified_time" content="2022-04-01T11:57:57.547Z">
+<meta property="article:published_time" content="2021-08-26T16:00:00.000Z">
+<meta property="article:modified_time" content="2022-04-18T07:59:56.857Z">
 <meta property="article:author" content="Zhang Jing">
 <meta property="article:tag" content="QEMU">
+<meta property="article:tag" content="Fault Injection">
 <meta name="twitter:card" content="summary_large_image">
   
   
-  <title>qemu动态二进制翻译 - Technical Blog</title>
+  <title>QEMU 故障注入 - Technical Blog</title>
 
   <link  rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4/dist/css/bootstrap.min.css" />
 
@@ -178,7 +179,7 @@
       <div class="full-bg-img">
         <div class="mask flex-center" style="background-color: rgba(0, 0, 0, 0.3)">
           <div class="page-header text-center fade-in-up">
-            <span class="h2" id="subtitle" title="qemu动态二进制翻译">
+            <span class="h2" id="subtitle" title="QEMU 故障注入">
               
             </span>
 
@@ -188,8 +189,8 @@
   
     <span class="post-meta">
       <i class="iconfont icon-date-fill" aria-hidden="true"></i>
-      <time datetime="2021-08-24 00:00" pubdate>
-        2021年8月24日 凌晨
+      <time datetime="2021-08-27 00:00" pubdate>
+        2021年8月27日 凌晨
       </time>
     </span>
   
@@ -237,33 +238,32 @@
         <div class="py-5" id="board">
           <article class="post-content mx-auto">
             <!-- SEO header -->
-            <h1 style="display: none">qemu动态二进制翻译</h1>
+            <h1 style="display: none">QEMU 故障注入</h1>
             
             <div class="markdown-body">
-              <h2 id="1-大体实现框架"><a href="#1-大体实现框架" class="headerlink" title="1. 大体实现框架"></a>1. 大体实现框架</h2><p>qemu的tcg翻译实现分为运行前预编译的阶段和运行时阶段。</p>
-<p><strong>预编译阶段实现的工作是目标指令集的编写</strong>。这个阶段需要对目标指令集进行完整的处理，将指令集硬编码成C语言代码，称为微指令（micro operation）。这个微指令相对原本的指令集来说较为精简，且每一个函数都相对简单。硬编码完成后，使用gcc将这些代码编译成object文件（.o文件），这样我们的硬编码阶段就完成了。</p>
-<p><strong>实现了硬编码之后，qemu采用一个<code>dyngen</code>的引擎生成动态翻译器</strong>，这个动态翻译器由目标指令集区分，接受我们上述编译好的.o文件，在运行时生成对应的目标汇编代码。在运行过程中，动态翻译器会将guest code转换成对应的micro op的组合，同时将对应的参数重定位（relocate）到micro op中，然后生成对应的汇编代码。</p>
-<h2 id="2-实现细节"><a href="#2-实现细节" class="headerlink" title="2. 实现细节"></a>2. 实现细节</h2><h3 id="2-1-Translated-Block-amp-Translated-Cache"><a href="#2-1-Translated-Block-amp-Translated-Cache" class="headerlink" title="2.1 Translated Block &amp; Translated Cache"></a>2.1 Translated Block &amp; Translated Cache</h3><blockquote>
-<p><strong>Translated Block(TBs)</strong>：一条语句开始～遇到跳转 / 以翻译期无法推断的方法修改静态CPU状态（static CPU state）时结束</p>
-<p><strong>Translated Cache</strong>：16Mbyte，为了设计简单，cache满了之后会全部刷新</p>
-<p><strong>Static CPU State</strong>：翻译时，进入TB时可以确定的CPU状态</p>
-</blockquote>
-<h3 id="2-2-寄存器分配"><a href="#2-2-寄存器分配" class="headerlink" title="2.2 寄存器分配"></a>2.2 寄存器分配</h3><p><strong>&lt;- 这部分基于初代qemu论文，可能已经过时 -&gt;</strong></p>
-<p>qemu使用固定的寄存器映射，即guest的寄存器固定映射到host的某些寄存器。通常来说，guest的大部分寄存器都存储在内存中，只利用几个寄存器存储一些暂时的变量。这样做可以消除架构之间的差异，设计更简单、移植性更好。</p>
-<h3 id="2-3-条件代码优化"><a href="#2-3-条件代码优化" class="headerlink" title="2.3 条件代码优化"></a>2.3 条件代码优化</h3><p>为了更好的性能，qemu没有像真实的指令集一样，运行一条指令修改一次状态flag。qemu采用了一个比较聪明的办法，执行过程中存储了三个变量<code>CC_SRC</code>、<code>CC_DST</code>、<code>CC_OP</code>。第一个变量表示指令的一个操作数，第二个变量表示指令的目的操作数，最后一个变量表示指令进行的操作。这样，每执行一条指令，就修改这三个变量，这个过程非常快。当我们需要用到状态flag的时候，例如ZF、OF这类的值，可以通过这些变量反向推导出flag的值。这样避免了每次都需要计算一次flag的繁琐计算和性能消耗。</p>
-<p>同时，这个方案还可以优化。在一个TB中，反向分析前一个语句的三个变量有没有被该语句使用，如果没有使用，就直接删去变量的赋值。</p>
-<h3 id="2-4-直接块链技术（direct-block-chaining）"><a href="#2-4-直接块链技术（direct-block-chaining）" class="headerlink" title="2.4 直接块链技术（direct block chaining）"></a>2.4 直接块链技术（direct block chaining）</h3><p>每一个TB运行结束后，通过哈希表查找跳转的下一个TB，如果TB已经被翻译好了，那么直接跳转，否则翻译。为了加速这一过程，还可以直接修改TB，使其直接跳转到下一个确定的TB。</p>
-<h3 id="2-5-内存管理"><a href="#2-5-内存管理" class="headerlink" title="2.5 内存管理"></a>2.5 内存管理</h3><p>qemu采用软件实现的MMU，并且使用一个地址翻译缓存来加速地址转换。为了避免每次MMU映射发生变化时刷新翻译的代码，QEMU使用了一个物理索引的翻译缓存，即TB采用物理地址索引。通过软件实现的MMU，就可以实现在Guest上VA-&gt;PA的转换。</p>
-<h3 id="2-6-异常的支持"><a href="#2-6-异常的支持" class="headerlink" title="2.6 异常的支持"></a>2.6 异常的支持</h3><p>qemu能够通过TB捕获异常发生时对应的指令和CPU状态的精确信息。</p>
-<h3 id="2-7-硬件中断"><a href="#2-7-硬件中断" class="headerlink" title="2.7 硬件中断"></a>2.7 硬件中断</h3><p>为了性能，qemu不会在执行每一条语句的时候判断是否产生硬件中断，用户必须异步地调用特殊的中断函数来通知qemu产生了中断，这个中断函数会对TB的跳转链进行设置，确保完成中断响应之后能够返回正确的位置继续执行。</p>
-<h2 id="3-从Guest-Physical-Address到Host-Virtual-Address"><a href="#3-从Guest-Physical-Address到Host-Virtual-Address" class="headerlink" title="3. 从Guest Physical Address到Host Virtual Address"></a>3. 从Guest Physical Address到Host Virtual Address</h2><p>上面我们提及了内核范围内TCG的实现，接下来考虑一个问题：翻译成Guest物理地址之后，代码开始执行。执行的过程中，由于没有kvm和硬件的支持，我们怎样利用软件实现来完成Guest地址到Host地址的转化呢？</p>
-<p>答案则是使用结构体进行管理对应的映射关系。我们都知道，在qemu中使用MemoryRegion对设备（不论是内核设备还是外设）进行地址管理。TB执行过程中，程序拿着翻译好的GVA开始找对应的设备，通过MemoryRegion查找到对应的设备。此时设备要开始执行了，设备需要自己的内存时（例如内存条、显卡），问题出现了，设备如何查找对应的内存呢？解决的办法很简单，只需要在MemoryRegion中存储对应的内容，能够顺着一路找到HVA就可以了。找到了HVA，接下来就是Host层面的OS可以处理的了。</p>
-<p>在MemoryRegion中，存在这样一个成员：</p>
-<figure class="highlight c"><table><tr><td class="gutter"><div class="code-wrapper"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></div></td><td class="code"><pre><code class="hljs c"><span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">MemoryRegion</span> &#123;</span><br>    ...<br>    RAMBlock *ram_block; <span class="hljs-comment">//指向对应的RAMBlock</span><br>    ...<br>&#125;;<br></code></pre></td></tr></table></figure>
-<p>这个成员的定义如下：</p>
-<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">RAMBlock</span> &#123;</span><br>   	...<br>    <span class="hljs-type">uint8_t</span> *host;         <span class="hljs-comment">// 对应的HVA</span><br>    ...<br>&#125;;<br></code></pre></td></tr></table></figure>
-<p>很明显，MemoryRegion可以直接对应查询到HVA。这些信息在设备创建（即向Host使用mmp申请空间）的时候就完成并存储下来了，TB执行的时候可以很方便地查询到，这样就完成了地址的转换。当然了，为了找到准确的地址，还需要进行例如offset和对齐等等操作，这些操作太过细节，这里就不再赘述了。</p>
-<h2 id="Reference"><a href="#Reference" class="headerlink" title="Reference"></a>Reference</h2><p>[1] Bellard F. QEMU, a fast and portable dynamic translator[C]//USENIX annual technical conference, FREENIX Track. 2005, 41: 46.</p>
+              <h1 id="Fault-Injection-in-QEMU"><a href="#Fault-Injection-in-QEMU" class="headerlink" title="Fault Injection in QEMU"></a>Fault Injection in QEMU</h1><h2 id="1-故障的种类"><a href="#1-故障的种类" class="headerlink" title="1. 故障的种类"></a>1. 故障的种类</h2><p>对于故障注入而言，常见的类型主要有：数据故障（<em>data fault</em>）、控制故障（<em>control fault</em>）、IO故障（<em>I/O fault</em>）。而根据故障的作用时间，还可以分为永久性故障（<em>permanent fault</em>）、间歇性故障（<em>Intermittent</em>）、短暂性故障（<em>transient</em>）。</p>
+<p>在第二种划分方式下，最为常见的永久性故障是stuck-at故障和Transition故障。前者是某一位固定在0或1而导致故障，后者是0和1之间进行翻转时产生的延时致使翻转完成前对内存单元读取到错误的值。间歇性和短暂性故障最常见的则是位的翻转。由于某种原因而导致本应该是0的位变成了1，反之亦然。这种错误具有非常大的随机性，可能只是偶然发生一次，也可能是间歇性的发生。</p>
+<p>故障的发生可以由时间触发，也可以由PC地址触发，或当对应的硬件被访问（whenever the victim component is accessed）时触发。</p>
+<h2 id="2-故障注入的不同类型"><a href="#2-故障注入的不同类型" class="headerlink" title="2. 故障注入的不同类型"></a>2. 故障注入的不同类型</h2><p>故障注入技术主要可以分为四类：</p>
+<ol>
+<li>hardware fault injection(HFI)</li>
+<li>emulation-based fault injection (EFI)</li>
+<li>software fault injection (SWIFI)</li>
+<li>simulation-based fault injection (SFI)</li>
+</ol>
+<p>以上四种方法都有对应的优点和问题。</p>
+<h3 id="2-1-Hardware-Fault-Injection"><a href="#2-1-Hardware-Fault-Injection" class="headerlink" title="2.1 Hardware Fault Injection"></a>2.1 Hardware Fault Injection</h3><p>硬件故障注入是直接使用真实硬件进行故障注入。这样做最大的好处是能够非常快速地得到结果。但为了实现硬件的故障注入，需要有额外的开支用于定做特殊的硬件平台，且只有在保证硬件平台可实现的情况下才可以开展故障注入的工作。另外，故障注入本身具有很大的风险性，因此故障注入有可能会直接导致硬件的毁坏。</p>
+<h3 id="2-2-Emulation-Based-Fault-Injection"><a href="#2-2-Emulation-Based-Fault-Injection" class="headerlink" title="2.2 Emulation-Based Fault Injection"></a>2.2 Emulation-Based Fault Injection</h3><p>Emulation-based fault injection的实现基于现场可编程门阵列（FPGAs）。使用FPGA可以最大程度地接近硬件平台的性能，同时还能有效降低硬件的开销和被毁坏的风险。然而，对于EFI的使用传统上仅限于stuck-at fault，且需要一个被测系统的合成模型。</p>
+<h3 id="2-3-Software-Fault-Injection"><a href="#2-3-Software-Fault-Injection" class="headerlink" title="2.3 Software Fault Injection"></a>2.3 Software Fault Injection</h3><p>SWFI的原理是改变系统上运行的软件的状态来检测系统的反应。SWIFI实验可以在接近实时的情况下进行，但需要对软件进行插桩，且不能够访问软件没有权限访问的地址空间。</p>
+<h3 id="2-4-Simulation-Based-Fault-Injection"><a href="#2-4-Simulation-Based-Fault-Injection" class="headerlink" title="2.4 Simulation-Based Fault Injection"></a>2.4 Simulation-Based Fault Injection</h3><p>SFI则是通过软件对硬件环境进行模拟，进而使软件系统运行在模拟的硬件环境中，从而通过对模拟硬件的故障注入来测试软件系统的响应。这相对SWIFI来说更好的一点是能够有更灵活的测试能力、以及不需要像SWIFI那样对运行的软件进行插桩。但是这个方法也面临许多问题，主要的问题是硬件模拟系统的开发难度以及性能问题。使用QEMU来完成故障注入即为SFI方法。</p>
+<h2 id="3-故障注入的方法"><a href="#3-故障注入的方法" class="headerlink" title="3. 故障注入的方法"></a>3. 故障注入的方法</h2><h3 id="3-1-数据故障"><a href="#3-1-数据故障" class="headerlink" title="3.1 数据故障"></a>3.1 数据故障</h3><p>数据故障最常用的方法是mask，也就是通过执行的时候，对寄存器的值进行位运算来修改特定的位上的值。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><div class="code-wrapper"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></div></td><td class="code"><pre><code class="hljs c">memory-&gt;ram[addr1] &amp;= <span class="hljs-number">0xFFFFFDFF</span> <span class="hljs-comment">// for stuck-at-0</span><br>memory-&gt;ram[addr2] |= <span class="hljs-number">0x00000080</span> <span class="hljs-comment">// for stuck-at-1</span><br>memory-&gt;ram[addr3] ^= <span class="hljs-number">0x00000003</span> <span class="hljs-comment">// for bit-flip</span><br></code></pre></td></tr></table></figure>
+<p>这样的方法对于任何的类型的内存单元都是适用的。但是对于不同的故障注入以及不同的应用场景（主要受到ISA的影响），需要采用略有不同的方案来处理。例如x86_64等CISC指令集，由于指令不定长，对IR进行处理时需要考虑如何获取完整的单一指令（QEMU取指判断后不返回，会直接执行）以及如何获取正常情况下的下一条指令的地址。这些问题总体上说都是细节处理，而整体方向上，数据故障使用mask来完成是最普遍的。</p>
+<h3 id="3-2-控制故障"><a href="#3-2-控制故障" class="headerlink" title="3.2 控制故障"></a>3.2 控制故障</h3><p>控制故障包括错误的指令、无关指令（extraneous instruction）、非法中断或异常（illegal interruption or exception）等等。为了模拟这些故障，可以使用一些函数来达到类似的效果。主要的方法有：可替代的解码语句（alternative the decode statement）、不执行某条具体语句、执行错误的语句。</p>
+<p>例如可以在故障注入函数中用以下的方法来模拟一个非法的中断：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs c">cpu_arch-&gt;excp_index := excp_index<br>cpu_arch-&gt;error_code := error_code<br>do_interrupt(cpu_arch)<br></code></pre></td></tr></table></figure>
+<h3 id="3-3-I-O-故障"><a href="#3-3-I-O-故障" class="headerlink" title="3.3 I/O 故障"></a>3.3 I/O 故障</h3><p>I/O设备在QEMU中被抽象成了一个数据结构，qemu对其进行注册、中断处理、读写处理。因此模拟I/O故障只需要在qemu的模拟硬件的入口函数中进行处理即可。在qemu中我们可以模拟的I/O故障有注册失败、读写错误、不正确的中断处理（bad interrupt handling）。</p>
+<h3 id="3-4-监视器"><a href="#3-4-监视器" class="headerlink" title="3.4 监视器"></a>3.4 监视器</h3><p>为了对故障注入框架进行封装，便于外界使用，最好的办法就是对其封装一个故障注入监视器（monitor）。这个监视器的实现原理可以与qemu monitor类似，或者直接在qemu monitor上进行封装。封装得到monitor之后，我们还可以采用编程语言定义的方式设计需要注入的故障，例如XML、Python等等。</p>
 
             </div>
             <hr>
@@ -275,6 +275,8 @@
                     <i class="iconfont icon-tags"></i>
                     
                       <a class="hover-with-bg" href="/tags/QEMU/">QEMU</a>
+                    
+                      <a class="hover-with-bg" href="/tags/Fault-Injection/">Fault Injection</a>
                     
                   </div>
                 
@@ -291,9 +293,9 @@
                   <article class="post-prev col-6">
                     
                     
-                      <a href="/2021/08/27/QEMU-%E6%95%85%E9%9A%9C%E6%B3%A8%E5%85%A5/">
+                      <a href="/2021/08/30/Insight-Of-Efficient-fault-injection-in-QEMU/">
                         <i class="iconfont icon-arrowleft"></i>
-                        <span class="hidden-mobile">QEMU 故障注入</span>
+                        <span class="hidden-mobile">Insight Of 'Efficient fault injection in QEMU'</span>
                         <span class="visible-mobile">上一篇</span>
                       </a>
                     
@@ -301,8 +303,8 @@
                   <article class="post-next col-6">
                     
                     
-                      <a href="/2021/08/20/QEMU-%E7%A8%8B%E5%BA%8F%E6%8F%92%E6%A1%A9/">
-                        <span class="hidden-mobile">QEMU 程序插桩</span>
+                      <a href="/2021/08/24/qemu_tcg/">
+                        <span class="hidden-mobile">qemu动态二进制翻译</span>
                         <span class="visible-mobile">下一篇</span>
                         <i class="iconfont icon-arrowright"></i>
                       </a>
