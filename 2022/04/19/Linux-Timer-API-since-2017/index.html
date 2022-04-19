@@ -18,21 +18,22 @@
   <meta name="author" content="Zhang Jing">
   <meta name="keywords" content="">
   
-    <meta name="description" content="最近读了一些关于C++编程技巧的内容，将一些技巧记录下来。  注意⚠️：以下使用的C++标准 &gt;&#x3D; C++17  1. 简单的读取和处理框架这部分是一个标准的处理简单算法题的模板，使用 vector 处理数据存储，cin 和 cout 处理输入输出。 12345678910111213141516#include &lt;vector&gt;#include &lt;iostream&gt;">
+    <meta name="description" content="Linux在内核版本4.14.0之后修改了内核驱动的Timer接口，因为互联网上大多数内容都是基于老的API，这里介绍最新的API接口以及基础用法  初始化Timer的初始化的变动如下： 123456- init_timer(&amp;dev-&gt;timer);- dev-&gt;timer.data &#x3D; (unsigned long) dev;- dev-&gt;timer.functio">
 <meta property="og:type" content="article">
-<meta property="og:title" content="一些关于C++的小技巧--1">
-<meta property="og:url" content="https://mrzleo.github.io/2022/04/01/%E4%B8%80%E4%BA%9B%E5%85%B3%E4%BA%8EC++-%E7%9A%84%E5%B0%8F%E6%8A%80%E5%B7%A7-1/index.html">
+<meta property="og:title" content="Linux Timer API(since 2017)">
+<meta property="og:url" content="https://mrzleo.github.io/2022/04/19/Linux-Timer-API-since-2017/index.html">
 <meta property="og:site_name" content="Technical Blog">
-<meta property="og:description" content="最近读了一些关于C++编程技巧的内容，将一些技巧记录下来。  注意⚠️：以下使用的C++标准 &gt;&#x3D; C++17  1. 简单的读取和处理框架这部分是一个标准的处理简单算法题的模板，使用 vector 处理数据存储，cin 和 cout 处理输入输出。 12345678910111213141516#include &lt;vector&gt;#include &lt;iostream&gt;">
+<meta property="og:description" content="Linux在内核版本4.14.0之后修改了内核驱动的Timer接口，因为互联网上大多数内容都是基于老的API，这里介绍最新的API接口以及基础用法  初始化Timer的初始化的变动如下： 123456- init_timer(&amp;dev-&gt;timer);- dev-&gt;timer.data &#x3D; (unsigned long) dev;- dev-&gt;timer.functio">
 <meta property="og:locale" content="zh_CN">
-<meta property="article:published_time" content="2022-04-01T11:41:25.000Z">
-<meta property="article:modified_time" content="2022-04-01T13:53:56.664Z">
+<meta property="article:published_time" content="2022-04-19T06:48:12.000Z">
+<meta property="article:modified_time" content="2022-04-19T07:15:49.595Z">
 <meta property="article:author" content="Zhang Jing">
-<meta property="article:tag" content="cpp">
+<meta property="article:tag" content="Linux">
+<meta property="article:tag" content="Driver">
 <meta name="twitter:card" content="summary_large_image">
   
   
-  <title>一些关于C++的小技巧--1 - Technical Blog</title>
+  <title>Linux Timer API(since 2017) - Technical Blog</title>
 
   <link  rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4/dist/css/bootstrap.min.css" />
 
@@ -178,7 +179,7 @@
       <div class="full-bg-img">
         <div class="mask flex-center" style="background-color: rgba(0, 0, 0, 0.3)">
           <div class="page-header text-center fade-in-up">
-            <span class="h2" id="subtitle" title="一些关于C++的小技巧--1">
+            <span class="h2" id="subtitle" title="Linux Timer API(since 2017)">
               
             </span>
 
@@ -188,8 +189,8 @@
   
     <span class="post-meta">
       <i class="iconfont icon-date-fill" aria-hidden="true"></i>
-      <time datetime="2022-04-01 19:41" pubdate>
-        2022年4月1日 晚上
+      <time datetime="2022-04-19 14:48" pubdate>
+        2022年4月19日 下午
       </time>
     </span>
   
@@ -199,7 +200,7 @@
   
     <span class="post-meta mr-2">
       <i class="iconfont icon-chart"></i>
-      1.3k 字
+      1.6k 字
     </span>
   
 
@@ -208,7 +209,7 @@
       <i class="iconfont icon-clock-fill"></i>
       
       
-      11 分钟
+      14 分钟
     </span>
   
 
@@ -237,26 +238,29 @@
         <div class="py-5" id="board">
           <article class="post-content mx-auto">
             <!-- SEO header -->
-            <h1 style="display: none">一些关于C++的小技巧--1</h1>
+            <h1 style="display: none">Linux Timer API(since 2017)</h1>
             
             <div class="markdown-body">
-              <p>最近读了一些关于C++编程技巧的内容，将一些技巧记录下来。</p>
-<blockquote>
-<p>注意⚠️：以下使用的C++标准 &gt;= C++17</p>
+              <blockquote>
+<p>Linux在内核版本4.14.0之后修改了内核驱动的Timer接口，因为互联网上大多数内容都是基于老的API，这里介绍最新的API接口以及基础用法</p>
 </blockquote>
-<h2 id="1-简单的读取和处理框架"><a href="#1-简单的读取和处理框架" class="headerlink" title="1. 简单的读取和处理框架"></a>1. 简单的读取和处理框架</h2><p>这部分是一个标准的处理简单算法题的模板，使用 <code>vector</code> 处理数据存储，<code>cin</code> 和 <code>cout</code> 处理输入输出。</p>
-<figure class="highlight c++"><table><tr><td class="gutter"><div class="code-wrapper"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></div></td><td class="code"><pre><code class="hljs c++"><span class="hljs-meta">#<span class="hljs-keyword">include</span> <span class="hljs-string">&lt;vector&gt;</span></span><br><span class="hljs-meta">#<span class="hljs-keyword">include</span> <span class="hljs-string">&lt;iostream&gt;</span></span><br><span class="hljs-keyword">using</span> <span class="hljs-keyword">namespace</span> std;<br><span class="hljs-function"><span class="hljs-type">int</span> <span class="hljs-title">main</span><span class="hljs-params">()</span> </span>&#123;<br>	vector&lt;<span class="hljs-type">int</span>&gt; arr;<br>    <span class="hljs-type">int</span> i;<br>    <span class="hljs-keyword">while</span> (cout &gt;&gt; i) &#123;<br>        arr.<span class="hljs-built_in">push_back</span>(i);<br>    &#125;<br>    <span class="hljs-keyword">if</span> (!cout.<span class="hljs-built_in">eof</span>()) &#123;<br>        cerr &lt;&lt; <span class="hljs-string">&quot;format error\n&quot;</span>;<br>        <span class="hljs-keyword">return</span> <span class="hljs-number">1</span>;<br>    &#125;<br>    <span class="hljs-comment">/* handle arr by algorithm */</span><br>    <span class="hljs-keyword">return</span> <span class="hljs-number">0</span>;<br>&#125;<br></code></pre></td></tr></table></figure>
-<h2 id="2-如何将数字转化成字符串"><a href="#2-如何将数字转化成字符串" class="headerlink" title="2. 如何将数字转化成字符串"></a>2. 如何将数字转化成字符串</h2><p>最简单的方法是使用 <code>stringstream</code>。只需要将其他的东西都输入进字符串流，然后将字符串流转换成字符串输出即可。</p>
-<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><code class="hljs c++"><span class="hljs-function">std::string <span class="hljs-title">itos</span><span class="hljs-params">(<span class="hljs-type">int</span> i)</span> </span>&#123;<br>    std::stringstream s;<br>    s &lt;&lt; i;<br>    <span class="hljs-keyword">return</span> s.<span class="hljs-built_in">str</span>();<br>&#125;<br></code></pre></td></tr></table></figure>
-<h2 id="3-void-main-是否合理？"><a href="#3-void-main-是否合理？" class="headerlink" title="3. void main() 是否合理？"></a>3. <code>void main()</code> 是否合理？</h2><p><strong>不合理</strong>。</p>
-<p>永远不应该使用 <code>void main</code>。标准的 C/C++ 程序都需要返回 int 给调用他的系统。没有办法处理返回值的情况下，返回值会被忽略（例如嵌入式或操作系统的场景下），但不代表  <code>void main</code> 符合标准。</p>
-<p>另外，C/C++ 允许 <code>main</code> 函数中不显式写出 <code>return</code> 语句，例如：</p>
-<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs c++"><span class="hljs-function"><span class="hljs-type">int</span> <span class="hljs-title">main</span><span class="hljs-params">()</span> </span>&#123;<br>	std::cout &lt;&lt; <span class="hljs-string">&quot;hello world!\n&quot;</span>;<br>&#125;<br></code></pre></td></tr></table></figure>
-<p>是符合编译器标准的。</p>
-<h2 id="4-使用优先队列"><a href="#4-使用优先队列" class="headerlink" title="4. 使用优先队列"></a>4. 使用优先队列</h2><p>标准库中的优先队列默认是最大堆，也可以自定义为最小堆，定义成最小堆的时候，需要定义为如下的形式</p>
-<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs c++">std::priority_queue&lt;<span class="hljs-type">int</span>, std::vector&lt;<span class="hljs-type">int</span>&gt;, std::greater&lt;<span class="hljs-type">int</span>&gt;&gt;() pq;<br></code></pre></td></tr></table></figure>
-<p>如果是自定义结构体时，需要重载两个运算符：</p>
-<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><code class="hljs c++"><span class="hljs-keyword">struct</span> <span class="hljs-title class_">Node</span> &#123;<br>	<span class="hljs-type">int</span> v;<br>	<span class="hljs-type">int</span> len;<br>	<span class="hljs-built_in">Node</span>(<span class="hljs-type">int</span> v, <span class="hljs-type">int</span> len) : <span class="hljs-built_in">v</span>(v), <span class="hljs-built_in">len</span>(len) &#123;&#125;<br>    <br>	<span class="hljs-type">bool</span> <span class="hljs-keyword">operator</span>&gt;(<span class="hljs-type">const</span> Node&amp; rhs) <span class="hljs-type">const</span> &#123; <span class="hljs-keyword">return</span> len &gt; rhs.len; &#125;<br>    <span class="hljs-type">bool</span> <span class="hljs-keyword">operator</span>&lt;(<span class="hljs-type">const</span> Node&amp; rhs) <span class="hljs-type">const</span> &#123; <span class="hljs-keyword">return</span> len &lt; rhs.len; &#125;<br>&#125;;<br><br>std::priority_queue&lt;Node, std::vector&lt;Node&gt;, std::greater&lt;Node&gt;&gt; pq;<br></code></pre></td></tr></table></figure>
+<h2 id="初始化"><a href="#初始化" class="headerlink" title="初始化"></a>初始化</h2><p>Timer的初始化的变动如下：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><div class="code-wrapper"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></div></td><td class="code"><pre><code class="hljs c">- init_timer(&amp;dev-&gt;timer);<br>- dev-&gt;timer.data = (<span class="hljs-type">unsigned</span> <span class="hljs-type">long</span>) dev;<br>- dev-&gt;timer.function = timer_callback;<br>- add_timer(&amp;dev-&gt;timer);<br>==========================================================<br>+ timer_setup(&amp;dev-&gt;timer, timer_callback, <span class="hljs-number">0</span>);<br></code></pre></td></tr></table></figure>
+<p>也就是说，以前需要的是 <code>init</code> 初始化，之后添加相关的回调函数，最后使用 <code>add_timer</code> 将 timer 加入到链表中。新版本的 API 更容易使用，我们只需要把 <code>timer_list</code> 变量、回调函数、flag 分别作为参数传入即可。</p>
+<h2 id="修改内部数据"><a href="#修改内部数据" class="headerlink" title="修改内部数据"></a>修改内部数据</h2><p>修改内部数据不能直接对timer的内部数据赋值，而是使用一个接口函数：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs c">mod_timer(&amp;tim-&gt;timer, jiffies + msecs_to_jiffies(<span class="hljs-number">3000</span>));<br></code></pre></td></tr></table></figure>
+<p>上面的代码修改了timer的内部数据 <code>jiffies</code>，也就是会在3秒后产生定时器中断。</p>
+<h2 id="回调函数"><a href="#回调函数" class="headerlink" title="回调函数"></a>回调函数</h2><p>回调函数中，我们需要获得计数器变量，对应的操作也发生了变化：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><code class="hljs c">- <span class="hljs-type">void</span> <span class="hljs-title function_">timer_callback</span><span class="hljs-params">(<span class="hljs-type">unsigned</span> <span class="hljs-type">long</span> devAddr)</span><br>- &#123;<br>-    <span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">myDevice</span> *<span class="hljs-title">dev</span> =</span> (myDevice *) devAddr;<br>- &#125;<br>====================================================<br>+ <span class="hljs-type">void</span> GetIntrTimerCallback(<span class="hljs-keyword">struct</span> timer_list *t)<br>+ &#123;<br>+    <span class="hljs-keyword">struct</span> myDevice *dev = from_timer(dev, t, timer);<br>+ &#125;<br></code></pre></td></tr></table></figure>
+<p>其中这个 <code>from_timer</code> 的作用是通过链表项 <code>timer_list</code> 获取到包装链表的整个结构体。这个逻辑是 Linux 内核中的链表设计的经典体现。在 C 语言中，我们的结构体会根据声明的变量进行排列，同时完成对齐操作。因此，Linux构建了这样一个链表结构：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">list_head</span> &#123;</span><br>	<span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">list_head</span> *<span class="hljs-title">next</span>;</span><br>	<span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">list_head</span> *<span class="hljs-title">prev</span>;</span><br>&#125;<br></code></pre></td></tr></table></figure>
+<p>可以看到，这个链表项并不包括数据，我们使用时要自定义一个结构体，然后将这个链表项嵌入我们自己的结构体：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">MyData</span> &#123;</span><br>	<span class="hljs-type">int</span> data;<br>	<span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">list_head</span> <span class="hljs-title">head</span>;</span><br>&#125;<br></code></pre></td></tr></table></figure>
+<p>当我们获得一个链表项的时候，怎么获得整个结构体呢？答案就是根据内存布局往前寻找结构体的内存起点，然后强制转换类型，重新解释指针指向的内存即可：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><code class="hljs c">--------  &lt;------- what we want to get 	--<br>| <span class="hljs-type">int</span>  |								 | -&gt; (<span class="hljs-keyword">struct</span> MyData *)((<span class="hljs-type">int</span>*) ptr_list - <span class="hljs-number">1</span>)<br>--------  &lt;------- get a list_head		--<br>| <span class="hljs-built_in">list</span> |<br>--------<br></code></pre></td></tr></table></figure>
+<p>Linux 为了这个操作设计了很多接口函数来处理，最终的源头都是一个函数——<code>container_of</code>。这种转换需要复杂的内存转换，指针的操作非常频繁，因此使用 Linux 内置的、经过测试而稳定的安全操作非常重要。</p>
+<p>上述的 <code>list_head</code> 包装了 <code>list_entry</code> 函数，而 timer 则提供了 <code>from_timer</code>。</p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>以上的内容就是在新版本 API 下，编写一个简单的 Timer 需要用的新函数了。</p>
 
             </div>
             <hr>
@@ -267,7 +271,9 @@
                   <div class="post-meta">
                     <i class="iconfont icon-tags"></i>
                     
-                      <a class="hover-with-bg" href="/tags/cpp/">cpp</a>
+                      <a class="hover-with-bg" href="/tags/Linux/">Linux</a>
+                    
+                      <a class="hover-with-bg" href="/tags/Driver/">Driver</a>
                     
                   </div>
                 
@@ -284,18 +290,12 @@
                   <article class="post-prev col-6">
                     
                     
-                      <a href="/2022/04/19/Linux-Timer-API-since-2017/">
-                        <i class="iconfont icon-arrowleft"></i>
-                        <span class="hidden-mobile">Linux Timer API(since 2017)</span>
-                        <span class="visible-mobile">上一篇</span>
-                      </a>
-                    
                   </article>
                   <article class="post-next col-6">
                     
                     
-                      <a href="/2022/03/27/%E5%A6%82%E4%BD%95%E4%B8%80%E8%A1%8C%E5%91%BD%E4%BB%A4%E8%B7%B3%E8%BD%AC%E5%88%B0%E7%9B%AE%E6%A0%87%E6%96%87%E4%BB%B6%E7%9A%84%E6%96%87%E4%BB%B6%E5%A4%B9%E4%B8%8B/">
-                        <span class="hidden-mobile">如何一行命令跳转到目标文件的文件夹下</span>
+                      <a href="/2022/04/01/%E4%B8%80%E4%BA%9B%E5%85%B3%E4%BA%8EC++-%E7%9A%84%E5%B0%8F%E6%8A%80%E5%B7%A7-1/">
+                        <span class="hidden-mobile">一些关于C++的小技巧--1</span>
                         <span class="visible-mobile">下一篇</span>
                         <i class="iconfont icon-arrowright"></i>
                       </a>
