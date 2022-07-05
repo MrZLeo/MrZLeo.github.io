@@ -4,6 +4,64 @@
   
   
   <entry>
+    <title>QT6: Qlabel</title>
+    <link href="/2022/07/02/QT6-Qlabel/"/>
+    <url>/2022/07/02/QT6-Qlabel/</url>
+    
+    <content type="html"><![CDATA[<h2 id="1-QSS"><a href="#1-QSS" class="headerlink" title="1. QSS"></a>1. QSS</h2><h2 id="2-Pixmap"><a href="#2-Pixmap" class="headerlink" title="2. Pixmap"></a>2. Pixmap</h2><p>使用QLabel可以加载加载图像，注意使用Resources的方式</p>]]></content>
+    
+    
+    
+  </entry>
+  
+  
+  
+  <entry>
+    <title>QT6: Slot and signal</title>
+    <link href="/2022/07/02/QT6-Slot-and-signal/"/>
+    <url>/2022/07/02/QT6-Slot-and-signal/</url>
+    
+    <content type="html"><![CDATA[<h2 id="基本概念"><a href="#基本概念" class="headerlink" title="基本概念"></a>基本概念</h2><ul><li>槽（slot）：事件触发的响应</li><li>信号（signal）：事件</li><li>上下文：this</li><li>绑定：connect(component, signal, this, slot)</li></ul><blockquote><p>qt creator 中可以使用可视化的方法绑定</p></blockquote>]]></content>
+    
+    
+    
+    <tags>
+      
+      <tag>qt</tag>
+      
+    </tags>
+    
+  </entry>
+  
+  
+  
+  <entry>
+    <title>QT6: Math</title>
+    <link href="/2022/07/02/QT6-Math/"/>
+    <url>/2022/07/02/QT6-Math/</url>
+    
+    <content type="html"><![CDATA[<p>qt 提供了大量的数学函数，具体应该查阅文档，这里给出简单的几个类别。</p><ul><li><p>qXXX:</p><ul><li><code>qAbs()</code></li><li><code>qMax()</code></li><li><code>qRound()</code>: 四舍五入</li><li><code>qSin()</code></li><li>…</li></ul></li><li><p>交换：<code>qSwap(a, b)</code></p></li><li><p>正则表达式：正则匹配</p></li></ul><p>使用qt自带的类来实现匹配：</p><figure class="highlight awk"><table><tr><td class="gutter"><div class="code-wrapper"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></div></td><td class="code"><pre><code class="hljs awk">QString text = <span class="hljs-string">&quot;text ttext Text123&quot;</span>;<br>QString pattern = <span class="hljs-string">&quot;(?i)t\\w+&quot;</span>           <span class="hljs-regexp">//</span> \w  : 一个或多个数字<br>                                        <span class="hljs-regexp">//</span> +   : 一个或多个<br>                                        <span class="hljs-regexp">//</span> \\  : 一个反斜杠是转义字符<br>                                        <span class="hljs-regexp">//</span> (?i): 标识，i表示忽略大小写<br>QRegualrExperssion qre(pattern);<br>QRegualrExperssionMatch m = qre.match(pattern);<br><span class="hljs-keyword">while</span> (m.hasMatch()) &#123;<br>    <span class="hljs-regexp">//</span> 只匹配第一个符合条件的<br>    qDebug() &lt;&lt; m.captured();<br><br>    <span class="hljs-regexp">//</span> 根据上一次匹配得到的索引的下一个进行匹配，更新m<br>    m = qre.match(text, m.capturedEnd());<br>&#125;<br></code></pre></td></tr></table></figure>]]></content>
+    
+    
+    
+  </entry>
+  
+  
+  
+  <entry>
+    <title>QT6: Collections</title>
+    <link href="/2022/07/02/QT6-Collections/"/>
+    <url>/2022/07/02/QT6-Collections/</url>
+    
+    <content type="html"><![CDATA[<h2 id="1-List"><a href="#1-List" class="headerlink" title="1. List"></a>1. List</h2><ul><li>基本与std一致，区别：插入元素使用 <code>append</code> 或者 <code>&lt;&lt;</code> 流式添加</li><li>迭代器: 可以使用Java方式的迭代和cpp方式的迭代，记住cpp方式就可以了<figure class="highlight cpp"><table><tr><td class="gutter"><div class="code-wrapper"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></div></td><td class="code"><pre><code class="hljs cpp">QList&lt;<span class="hljs-type">int</span>&gt; list;<br><br><span class="hljs-keyword">for</span> (<span class="hljs-keyword">auto</span> iter = list.<span class="hljs-built_in">begin</span>(); iter != list.<span class="hljs-built_in">end</span>(); ++iter) &#123;<br><br>&#125;<br></code></pre></td></tr></table></figure></li></ul><h2 id="2-Map"><a href="#2-Map" class="headerlink" title="2. Map"></a>2. Map</h2><ul><li>QMap | QHash</li><li>操作与上述类似</li></ul><h2 id="3-foreach"><a href="#3-foreach" class="headerlink" title="3. foreach"></a>3. foreach</h2><p>foreach 是qt提供的特殊宏，用来实现类似于迭代器访问的功能：</p><figure class="highlight processing"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><code class="hljs processing">foreach(<span class="hljs-type">int</span> i, list) &#123;<br>    <span class="hljs-title function_">qDebug</span>() &lt;&lt; i;<br>&#125;<br><br>foreach(auto <span class="hljs-built_in">key</span> : <span class="hljs-built_in">map</span>.<span class="hljs-property">keys</span>()) &#123;<br>    <span class="hljs-title function_">qDebug</span>() &lt;&lt; <span class="hljs-built_in">key</span> &lt;&lt; <span class="hljs-string">&quot;: &quot;</span> &lt;&lt; <span class="hljs-built_in">map</span>.<span class="hljs-property">value</span>(<span class="hljs-built_in">key</span>);<br>&#125;<br></code></pre></td></tr></table></figure><h2 id="4-万能类-QVarint"><a href="#4-万能类-QVarint" class="headerlink" title="4. 万能类 QVarint"></a>4. 万能类 QVarint</h2><p>QVarint 是 qt 提供的多类型类，可以存储不同类型的值：<br><figure class="highlight scss"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs scss">QVarint <span class="hljs-built_in">qv</span>(<span class="hljs-number">123</span>);<br><span class="hljs-built_in">qDebug</span>() &lt;&lt; qv<span class="hljs-selector-class">.toInt</span>();<br></code></pre></td></tr></table></figure></p><ul><li>判断类型：</li></ul><figure class="highlight applescript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs applescript">QVarint qv;<br><span class="hljs-keyword">if</span> (qv.metaType().<span class="hljs-built_in">id</span>() == QMetaType::fromName(<span class="hljs-string">&quot;QString&quot;</span>).<span class="hljs-built_in">id</span>()) &#123;<br>    ...<br>&#125;<br></code></pre></td></tr></table></figure>]]></content>
+    
+    
+    
+  </entry>
+  
+  
+  
+  <entry>
     <title>QT6: QString</title>
     <link href="/2022/05/09/QT6-QString/"/>
     <url>/2022/05/09/QT6-QString/</url>

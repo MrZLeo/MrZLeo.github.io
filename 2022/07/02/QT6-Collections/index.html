@@ -18,22 +18,20 @@
   <meta name="author" content="Zhang Jing">
   <meta name="keywords" content="">
   
-    <meta name="description" content="1. 四个字符串拼接函数1.1 +号跟 std::string 一样，实现了运算符重载，可以直接使用加号连接两个字符串 1.2 append()append() 函数可以在函数末尾添加新的字符串 1.3 arg()arg 操作是QString实现的特殊操作，具体使用如下 1QString str &#x3D; QString(&quot;welcome %1 %2&quot;).arg(&quot;to&amp;q">
+    <meta name="description" content="1. List 基本与std一致，区别：插入元素使用 append 或者 &lt;&lt; 流式添加 迭代器: 可以使用Java方式的迭代和cpp方式的迭代，记住cpp方式就可以了12345QList&lt;int&gt; list;for (auto iter &#x3D; list.begin(); iter !&#x3D; list.end(); ++iter) &amp;#123;&amp;#125;   2. Map QM">
 <meta property="og:type" content="article">
-<meta property="og:title" content="QT6: QString">
-<meta property="og:url" content="https://mrzleo.github.io/2022/05/09/QT6-QString/index.html">
+<meta property="og:title" content="QT6: Collections">
+<meta property="og:url" content="https://mrzleo.github.io/2022/07/02/QT6-Collections/index.html">
 <meta property="og:site_name" content="Technical Blog">
-<meta property="og:description" content="1. 四个字符串拼接函数1.1 +号跟 std::string 一样，实现了运算符重载，可以直接使用加号连接两个字符串 1.2 append()append() 函数可以在函数末尾添加新的字符串 1.3 arg()arg 操作是QString实现的特殊操作，具体使用如下 1QString str &#x3D; QString(&quot;welcome %1 %2&quot;).arg(&quot;to&amp;q">
+<meta property="og:description" content="1. List 基本与std一致，区别：插入元素使用 append 或者 &lt;&lt; 流式添加 迭代器: 可以使用Java方式的迭代和cpp方式的迭代，记住cpp方式就可以了12345QList&lt;int&gt; list;for (auto iter &#x3D; list.begin(); iter !&#x3D; list.end(); ++iter) &amp;#123;&amp;#125;   2. Map QM">
 <meta property="og:locale" content="zh_CN">
-<meta property="article:published_time" content="2022-05-09T08:19:21.000Z">
-<meta property="article:modified_time" content="2022-07-02T08:45:34.595Z">
+<meta property="article:published_time" content="2022-07-02T08:46:28.000Z">
+<meta property="article:modified_time" content="2022-07-02T09:15:29.736Z">
 <meta property="article:author" content="Zhang Jing">
-<meta property="article:tag" content="cpp">
-<meta property="article:tag" content="QT">
 <meta name="twitter:card" content="summary_large_image">
   
   
-  <title>QT6: QString - Technical Blog</title>
+  <title>QT6: Collections - Technical Blog</title>
 
   <link  rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4/dist/css/bootstrap.min.css" />
 
@@ -179,7 +177,7 @@
       <div class="full-bg-img">
         <div class="mask flex-center" style="background-color: rgba(0, 0, 0, 0.3)">
           <div class="page-header text-center fade-in-up">
-            <span class="h2" id="subtitle" title="QT6: QString">
+            <span class="h2" id="subtitle" title="QT6: Collections">
               
             </span>
 
@@ -189,8 +187,8 @@
   
     <span class="post-meta">
       <i class="iconfont icon-date-fill" aria-hidden="true"></i>
-      <time datetime="2022-05-09 16:19" pubdate>
-        2022年5月9日 下午
+      <time datetime="2022-07-02 16:46" pubdate>
+        2022年7月2日 下午
       </time>
     </span>
   
@@ -200,7 +198,7 @@
   
     <span class="post-meta mr-2">
       <i class="iconfont icon-chart"></i>
-      1k 字
+      579 字
     </span>
   
 
@@ -209,7 +207,7 @@
       <i class="iconfont icon-clock-fill"></i>
       
       
-      9 分钟
+      5 分钟
     </span>
   
 
@@ -238,66 +236,31 @@
         <div class="py-5" id="board">
           <article class="post-content mx-auto">
             <!-- SEO header -->
-            <h1 style="display: none">QT6: QString</h1>
+            <h1 style="display: none">QT6: Collections</h1>
             
             <div class="markdown-body">
-              <h2 id="1-四个字符串拼接函数"><a href="#1-四个字符串拼接函数" class="headerlink" title="1. 四个字符串拼接函数"></a>1. 四个字符串拼接函数</h2><h3 id="1-1-号"><a href="#1-1-号" class="headerlink" title="1.1 +号"></a>1.1 +号</h3><p>跟 <code>std::string</code> 一样，实现了运算符重载，可以直接使用加号连接两个字符串</p>
-<h3 id="1-2-append"><a href="#1-2-append" class="headerlink" title="1.2 append()"></a>1.2 append()</h3><p><code>append()</code> 函数可以在函数末尾添加新的字符串</p>
-<h3 id="1-3-arg"><a href="#1-3-arg" class="headerlink" title="1.3 arg()"></a>1.3 arg()</h3><p><code>arg</code> 操作是QString实现的特殊操作，具体使用如下</p>
-<figure class="highlight c++"><table><tr><td class="gutter"><div class="code-wrapper"><pre><span class="line">1</span><br></pre></div></td><td class="code"><pre><code class="hljs c++">QString str = <span class="hljs-built_in">QString</span>(<span class="hljs-string">&quot;welcome %1 %2&quot;</span>).<span class="hljs-built_in">arg</span>(<span class="hljs-string">&quot;to&quot;</span>).<span class="hljs-built_in">arg</span>(<span class="hljs-string">&quot;beijing&quot;</span>);<br></code></pre></td></tr></table></figure>
-<h3 id="1-4-asprintf"><a href="#1-4-asprintf" class="headerlink" title="1.4 asprintf()"></a>1.4 asprintf()</h3><p><code>asprintf()</code> 是能够类似于 rust 中 <code>format!</code> 的函数，使用方法如下：</p>
-<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs c++">QString str = QString::<span class="hljs-built_in">asprintf</span>(<span class="hljs-string">&quot;%s %s %s&quot;</span>, <span class="hljs-string">&quot;welcome&quot;</span>, <span class="hljs-string">&quot;to&quot;</span>, <span class="hljs-string">&quot;beijing&quot;</span>);<br></code></pre></td></tr></table></figure>
-<p>要注意，上述的子字符串应该是<code>const char *</code>类型的，如果要将 <code>QString</code> 转化成<br><code>const char *</code> 类型，应该：</p>
-<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs c++">QByteArray ba = str.<span class="hljs-built_in">toLocal8Bit</span>();<br><span class="hljs-type">const</span> <span class="hljs-type">char</span> *c_str = ba.<span class="hljs-built_in">data</span>();<br></code></pre></td></tr></table></figure>
-<h2 id="2-插入字符串"><a href="#2-插入字符串" class="headerlink" title="2. 插入字符串"></a>2. 插入字符串</h2><h3 id="2-1-头插入"><a href="#2-1-头插入" class="headerlink" title="2.1 头插入"></a>2.1 头插入</h3><p><code>prepend()</code>函数实现头插入</p>
-<h3 id="2-2-尾插入"><a href="#2-2-尾插入" class="headerlink" title="2.2 尾插入"></a>2.2 尾插入</h3><p><code>append()</code> 函数实现尾插入</p>
-<h3 id="2-3-任意插入"><a href="#2-3-任意插入" class="headerlink" title="2.3 任意插入"></a>2.3 任意插入</h3><p><code>insert(index, replaceString)</code> 实现任意位置插入</p>
-<h2 id="3-替换"><a href="#3-替换" class="headerlink" title="3. 替换"></a>3. 替换</h2><p><code>replace(index, len, newStr)</code> 实现字符串的替换</p>
-<h2 id="4-去除空格"><a href="#4-去除空格" class="headerlink" title="4. 去除空格"></a>4. 去除空格</h2><ul>
-<li>两端去除空格使用函数 <code>trimmed()</code></li>
-<li>如果想要将多个空格都转换成一个空格，例如 <code>a__b</code> 转化成<br><code>a_b</code>（<code>_</code>表示一个空格），可以使用 <code>simplified()</code></li>
-</ul>
-<h2 id="5-字符串查询"><a href="#5-字符串查询" class="headerlink" title="5. 字符串查询"></a>5. 字符串查询</h2><ul>
-<li>包含：<code>contains</code></li>
-<li>开头：<code>startsWith</code></li>
-<li>结尾：<code>endsWith</code></li>
-<li>大小写敏感：<code>Qt::CaseSensitive</code> 和 <code>Qt::CaseInsensitive</code></li>
-</ul>
-<h2 id="6-字符串比较"><a href="#6-字符串比较" class="headerlink" title="6. 字符串比较"></a>6. 字符串比较</h2><ul>
-<li>直接使用运算符比较(&gt;, &lt;, &gt;= …)</li>
-<li><code>QString::localeAwareCompare(a, b)</code>：使用本地字符集，与平台有关</li>
-<li><code>str.compare()</code>：使用unicode，与平台无关，速度快</li>
-<li>比较结果<ul>
-<li>a &gt; b: 1</li>
-<li>a &lt; b: -1</li>
-<li>a == b: 0</li>
-</ul>
+              <h2 id="1-List"><a href="#1-List" class="headerlink" title="1. List"></a>1. List</h2><ul>
+<li>基本与std一致，区别：插入元素使用 <code>append</code> 或者 <code>&lt;&lt;</code> 流式添加</li>
+<li>迭代器: 可以使用Java方式的迭代和cpp方式的迭代，记住cpp方式就可以了<figure class="highlight cpp"><table><tr><td class="gutter"><div class="code-wrapper"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></div></td><td class="code"><pre><code class="hljs cpp">QList&lt;<span class="hljs-type">int</span>&gt; list;<br><br><span class="hljs-keyword">for</span> (<span class="hljs-keyword">auto</span> iter = list.<span class="hljs-built_in">begin</span>(); iter != list.<span class="hljs-built_in">end</span>(); ++iter) &#123;<br><br>&#125;<br></code></pre></td></tr></table></figure>
 </li>
 </ul>
-<h2 id="7-字符串转换"><a href="#7-字符串转换" class="headerlink" title="7. 字符串转换"></a>7. 字符串转换</h2><ul>
-<li><code>toInt</code> | <code>toInt(&amp;ok, d)</code><ul>
-<li>ok: 表示是否转换成功</li>
-<li>d: 将字符串当作什么进制（8、10、16），最终转换为10进制</li>
+<h2 id="2-Map"><a href="#2-Map" class="headerlink" title="2. Map"></a>2. Map</h2><ul>
+<li>QMap | QHash</li>
+<li>操作与上述类似</li>
 </ul>
-</li>
-<li><code>toxxx</code></li>
-<li><code>qDebug() &lt;&lt; xxx</code>: Qt自带的std::cout，自带换行</li>
+<h2 id="3-foreach"><a href="#3-foreach" class="headerlink" title="3. foreach"></a>3. foreach</h2><p>foreach 是qt提供的特殊宏，用来实现类似于迭代器访问的功能：</p>
+<figure class="highlight processing"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><code class="hljs processing">foreach(<span class="hljs-type">int</span> i, list) &#123;<br>    <span class="hljs-title function_">qDebug</span>() &lt;&lt; i;<br>&#125;<br><br>foreach(auto <span class="hljs-built_in">key</span> : <span class="hljs-built_in">map</span>.<span class="hljs-property">keys</span>()) &#123;<br>    <span class="hljs-title function_">qDebug</span>() &lt;&lt; <span class="hljs-built_in">key</span> &lt;&lt; <span class="hljs-string">&quot;: &quot;</span> &lt;&lt; <span class="hljs-built_in">map</span>.<span class="hljs-property">value</span>(<span class="hljs-built_in">key</span>);<br>&#125;<br></code></pre></td></tr></table></figure>
+<h2 id="4-万能类-QVarint"><a href="#4-万能类-QVarint" class="headerlink" title="4. 万能类 QVarint"></a>4. 万能类 QVarint</h2><p>QVarint 是 qt 提供的多类型类，可以存储不同类型的值：<br><figure class="highlight scss"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs scss">QVarint <span class="hljs-built_in">qv</span>(<span class="hljs-number">123</span>);<br><span class="hljs-built_in">qDebug</span>() &lt;&lt; qv<span class="hljs-selector-class">.toInt</span>();<br></code></pre></td></tr></table></figure></p>
+<ul>
+<li>判断类型：</li>
 </ul>
+<figure class="highlight applescript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs applescript">QVarint qv;<br><span class="hljs-keyword">if</span> (qv.metaType().<span class="hljs-built_in">id</span>() == QMetaType::fromName(<span class="hljs-string">&quot;QString&quot;</span>).<span class="hljs-built_in">id</span>()) &#123;<br>    ...<br>&#125;<br></code></pre></td></tr></table></figure>
 
             </div>
             <hr>
             <div>
               <div class="post-metas mb-3">
                 
-                
-                  <div class="post-meta">
-                    <i class="iconfont icon-tags"></i>
-                    
-                      <a class="hover-with-bg" href="/tags/cpp/">cpp</a>
-                    
-                      <a class="hover-with-bg" href="/tags/QT/">QT</a>
-                    
-                  </div>
                 
               </div>
               
@@ -312,9 +275,9 @@
                   <article class="post-prev col-6">
                     
                     
-                      <a href="/2022/07/02/QT6-Collections/">
+                      <a href="/2022/07/02/QT6-Math/">
                         <i class="iconfont icon-arrowleft"></i>
-                        <span class="hidden-mobile">QT6: Collections</span>
+                        <span class="hidden-mobile">QT6: Math</span>
                         <span class="visible-mobile">上一篇</span>
                       </a>
                     
@@ -322,8 +285,8 @@
                   <article class="post-next col-6">
                     
                     
-                      <a href="/2022/05/09/QT6-%E7%8E%AF%E5%A2%83%E9%85%8D%E7%BD%AE%E5%92%8C%E5%9F%BA%E6%9C%AC%E6%93%8D%E4%BD%9C/">
-                        <span class="hidden-mobile">QT6: 环境配置和基本操作</span>
+                      <a href="/2022/05/09/QT6-QString/">
+                        <span class="hidden-mobile">QT6: QString</span>
                         <span class="visible-mobile">下一篇</span>
                         <i class="iconfont icon-arrowright"></i>
                       </a>
