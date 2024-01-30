@@ -1,6 +1,6 @@
 ---
-tags:
-  - SOSP23
+conference:
+  - SOSP'23
 ---
 ![[authors.png]]
 
