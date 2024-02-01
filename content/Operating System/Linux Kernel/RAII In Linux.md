@@ -2,6 +2,7 @@
 tags:
   - C
   - wiki
+publish: true
 ---
 
 > `include/linux/cleanup.h`
